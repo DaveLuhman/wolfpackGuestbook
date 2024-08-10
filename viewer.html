@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Guest Entries Viewer</title>
+    <style>
+      body {
+        font-family: "Poppins", sans-serif;
+        background-color: #00447c;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+      }
+      h1 {
+        margin-bottom: 20px;
+      }
+      table {
+        width: 80%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid white;
+        padding: 8px;
+        text-align: left;
+      }
+      .button-container {
+        margin: 20px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 5px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Manager Timeclock Viewer</h1>
+    <div class="button-container">
+      <button id="reload-table">Reload Data</button>
+      <button id="export-csv">Export to CSV</button>
+      <button id="flush-data">Flush Data</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Onecard</th>
+          <th>Date/Time</th>
+        </tr>
+      </thead>
+      <tbody id="entries-table"></tbody>
+    </table>
+    <script>
+      const { ipcRenderer } = require("electron");
+      ipcRenderer.on("load-entries", (event, data) => {
+        const entriesTable = document.getElementById("entries-table");
+        entriesTable.innerHTML = data
+          .map(
+            (entry) => `
+        <tr>
+          <td>${entry.name}</td>
+          <td>${entry.onecard ? entry.onecard : "N/A"}</td>
+          <td>${new Date(entry.entryTime).toLocaleString()}</td>
+        </tr>
+      `
+          )
+          .join("");
+      });
+
+      document.getElementById("export-csv").addEventListener("click", () => {
+        ipcRenderer.send("export-csv");
+      });
+      document.getElementById("reload-table").addEventListener("click", () => {
+        ipcRenderer.send("request-entries");
+      });
+
+      document.getElementById("flush-data").addEventListener("click", () => {
+        ipcRenderer.send("flush-data");
+      });
+
+      ipcRenderer.send("request-entries");
+    </script>
+  </body>
+</html>
