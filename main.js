@@ -4,6 +4,7 @@ const {
   ipcMain,
   nativeImage,
   dialog,
+  globalShortcut,
 } = require("electron");
 const path = require("path");
 const connectDB = require("./db.js");
@@ -37,11 +38,27 @@ function createMainWindow() {
     app.quit(); // Ensure the application exits when the window is closed
   });
 }
-
+const guestButtonPressCallback = async () => {
+  try {
+    const anonEntry = await GuestEntry.createAnonymousEntry();
+    mainWindow.webContents.send("guest-entry", {
+      name: "Guest Visitor",
+      onecard: null,
+      entryTime: new Date().toLocaleDateString()
+    });
+  } catch (error) {
+    console.error("Error handling entry:", error.message);
+    mainWindow.webContents.send(
+      "entry-error",
+      `Database error: ${error.message}`
+    );
+  }
+};
 app.on("ready", () => {
   createMainWindow();
   connectDB();
 
+  globalShortcut.register("F24", guestButtonPressCallback);
   const onSwipe = async (error, onecardData) => {
     if (error) {
       console.error("Error during swipe:", error.message);
@@ -94,8 +111,8 @@ function createViewerWindow() {
 }
 // open viewer window when logo on main window is clicked
 ipcMain.on("open-viewer-window", function () {
-  if(!viewerWindow){
-    createViewerWindow()
+  if (!viewerWindow) {
+    createViewerWindow();
   }
 });
 // frontend requesting entries to fill table
@@ -109,7 +126,7 @@ ipcMain.on("request-entries", async (e) => {
 });
 ipcMain.on("export-csv", async (event) => {
   try {
-    const entries = await GuestEntry.getAllEntries()
+    const entries = await GuestEntry.getAllEntries();
     const currentDate = new Date().toISOString().split("T")[0];
     const defaultPath = `gb-entries_${currentDate}.csv`;
 
@@ -157,7 +174,6 @@ ipcMain.on("flush-data", async (event) => {
     }
   }
 });
-
 
 app.on("window-all-closed", function () {
   if (process.platform !== "darwin") {

@@ -13,7 +13,7 @@ connectDB.schema.hasTable('GuestEntry').then(exists => {
   if (!exists) {
     return connectDB.schema.createTable('GuestEntry', table => {
       table.increments('id').primary();
-      table.string('onecard').notNullable();
+      table.integer('onecard')
       table.string('name').notNullable();
       table.datetime('entryTime').notNullable();
     });
