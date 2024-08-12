@@ -1,7 +1,7 @@
 {
-  "name": "employee-timeclock",
+  "name": "wolfpack-guestbook",
   "version": "1.0.0",
-  "description": "Employee timeclock application",
+  "description": "guest access tracking application",
   "main": "main.js",
   "type": "commonjs",
   "scripts": {

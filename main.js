@@ -38,9 +38,19 @@ function createMainWindow() {
     app.quit(); // Ensure the application exits when the window is closed
   });
 }
+let debounceTimeout
+const DEBOUNCE_TIME = 3000 // 3000ms or 3 seconds
 const guestButtonPressCallback = async () => {
+  if (debounceTimeout) {
+    console.log('F24 press ignored due to active timeout.');
+    return; // Ignore the press if debounce is active
+  }
+
+  debounceTimeout = setTimeout(() => {
+    debounceTimeout = null; // Reset the timeout after the period
+  }, DEBOUNCE_TIME);
   try {
-    const anonEntry = await GuestEntry.createAnonymousEntry();
+    await GuestEntry.createAnonymousEntry();
     mainWindow.webContents.send("guest-entry", {
       name: "Guest Visitor",
       onecard: null,
@@ -178,6 +188,7 @@ ipcMain.on("flush-data", async (event) => {
 app.on("window-all-closed", function () {
   if (process.platform !== "darwin") {
     app.quit();
+    globalShortcut.unregisterAll()
   }
 });
 
