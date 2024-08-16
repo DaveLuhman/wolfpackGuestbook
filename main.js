@@ -11,7 +11,6 @@ const connectDB = require("./db.js");
 const GuestEntry = require("./GuestEntry.js");
 const { startListeningToSwiper } = require("./magtekSwiper.js");
 const { createObjectCsvWriter } = require("csv-writer");
-const fs = require("fs");
 
 let mainWindow, viewerWindow;
 

@@ -1,7 +1,7 @@
 {
   "name": "wolfpack-guestbook",
   "version": "1.0.0",
-  "description": "guest access tracking application",
+  "description": "guest attendance tracking application",
   "main": "main.js",
   "type": "commonjs",
   "scripts": {
@@ -15,7 +15,6 @@
     "@electron-forge/cli": "^7.4.0",
     "@electron-forge/maker-deb": "^7.4.0",
     "@electron-forge/maker-rpm": "^7.4.0",
-    "@electron-forge/maker-squirrel": "^7.4.0",
     "@electron-forge/maker-zip": "^7.4.0",
     "@electron-forge/plugin-auto-unpack-natives": "^7.4.0",
     "@electron-forge/plugin-fuses": "^7.4.0",
@@ -23,13 +22,12 @@
     "electron": "^31.3.1"
   },
   "dependencies": {
+    "@electron-forge/maker-wix": "^7.4.0",
     "csv-writer": "^1.6.0",
     "dayjs": "^1.11.12",
-    "dotenv": "^16.4.5",
     "electron-squirrel-startup": "^1.0.1",
     "inquirer": "^10.1.8",
     "knex": "^3.1.0",
-    "mongoose": "^8.5.2",
     "node-hid": "^3.1.0",
     "sqlite3": "^5.1.7"
   }
