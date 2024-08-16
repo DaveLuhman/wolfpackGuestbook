@@ -71,7 +71,5 @@ const startListeningToSwiper = async (callback) => {
   }
 };
 module.exports = {
-  parseSwipeData,
-  getMagtekSwiper,
   startListeningToSwiper,
 };
