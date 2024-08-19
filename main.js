@@ -35,7 +35,40 @@ function createMainWindow() {
   mainWindow.on("closed", function () {
     mainWindow = null;
     app.quit(); // Ensure the application exits when the window is closed
-  });
+  })
+  // Once the window is fully loaded, start the HID detection process
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Window fully loaded, starting HID detection...')
+    initializeSwiper()
+  })
+}
+async function initializeSwiper() {
+  console.log('Looking for Mag-Tek Swiper or other HID devices...')
+  let HIDPath = await getMagtekSwiper()
+  if (Array.isArray(HIDPath)) {
+      console.log('Multiple HID devices detected, sending select-hid event to renderer.')
+      mainWindow.webContents.send('select-hid', HIDPath)
+      ipcMain.once('hid-selection', async (event, selectedPath) => {
+          console.log('HID device selected:', selectedPath)
+          HIDPath = selectedPath
+          try {
+              mainWindow.setSize(400, 500)
+              await startListeningToSwiper(HIDPath, onSwipe)
+          } catch (error) {
+              console.error(
+                  'Error starting swiper after selection:',
+                  error.message
+              )
+          }
+      })
+  } else {
+      try {
+          console.log('MagTek Swiper detected, starting swiper...')
+          await startListeningToSwiper(HIDPath, onSwipe)
+      } catch (error) {
+          console.error('Error starting swiper:', error.message)
+      }
+  }
 }
 let debounceTimeout
 const DEBOUNCE_TIME = 3000 // 3000ms or 3 seconds
