@@ -9,7 +9,7 @@ const {
 const path = require("path");
 const connectDB = require("./db.js");
 const GuestEntry = require("./GuestEntry.js");
-const { startListeningToSwiper } = require("./magtekSwiper.js");
+const { getMagtekSwiper, startListeningToSwiper } = require("./magtekSwiper.js");
 const { createObjectCsvWriter } = require("csv-writer");
 
 let mainWindow, viewerWindow;
