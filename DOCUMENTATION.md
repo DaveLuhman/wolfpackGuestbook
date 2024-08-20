@@ -6,14 +6,15 @@
 **Wolfpack Guestbook** - Version 1.0.0
 
 ### **Purpose**
-Wolfpack Guestbook is an Electron-based desktop application designed to track attendance volume as a fully-enclosed software solution.  It processes card swipe data to extract user identification information and displays it to the user, as well as stores it to a local-only SQLite3 database. This can later be exported to CSV for further examination and analysis.
+Wolfpack Guestbook is an Electron-based desktop application designed to track attendance volume as a fully-enclosed software solution.  It processes card swipe data or specific keystrokes to extract user identification information, optionally display the result to the screen, and store it to a local-only SQLite3 database. This can later be exported to CSV for further examination and analysis.
 
 ### **Target Audience**
-This application is intended for internal use by staff managing attendance of events.
+This application is intended for internal use by staff managing attendance of events at Madison Area Technical College.
 
 ### **Overview**
 The application automatically detects connected MagTek HID devices, allows the user to select an appropriate device if multiple are available. Once a HID device is selected, the application listens for card swipe events and key-press events for "F24". An anonymous entry is entered on F24, and on card swipe the parsed data is inserted to the database as well as displayed for the user.
 
+---
 ---
 
 ## **2. Application Architecture**
@@ -30,7 +31,7 @@ The application automatically detects connected MagTek HID devices, allows the u
     graph TD
     subgraph Electron App
         subgraph Main Process
-            A[main.js] --> B[getMagtekSwiper - Detect HID Devices]
+            A[main.js] <==> B[getMagtekSwiper - Detect HID Devices]
             A --> C[startListeningToSwiper - Listen for Swipes]
             C --> D[HID Device]
             A --> E[BrowserWindow - Load index.html]
@@ -57,6 +58,8 @@ The application consists of the following main components:
 - **Main Process (`main.js`)**: Manages the lifecycle of the application, creates the main window, handles IPC communications, and manages the HID listener.
 - **Renderer Process (`index.html`)**: Displays the user interface and handles user interactions, such as selecting a HID device and displaying swipe data.
 - **HID Device Module (`magtekSwiper.js`)**: Contains the logic for detecting, connecting to, and listening for data from HID devices.
+- **SQLite3 Database(`db.js`,`GuestEntry.js`)**: Modules used to initialize and interact with the database.
+
 
 ### **Module Overview**
 
@@ -68,24 +71,33 @@ The application consists of the following main components:
 
 #### **magtekSwiper.js**
 - Uses the `node-hid` library to detect available HID devices.
-- Exposes functions for starting and stopping the listener on a selected HID device.
+- Exposes functions for starting and stopping the listener, as well as selecting a HID device to listen to.
 - Parses swipe data to extract user identification information (name and Onecard ID).
 
 #### **index.html**
-- The markup used by the renderer to display the UI, including options for selecting a HID device and displaying swipe data.
+- The markup used by the renderer to display the UI, including options for selecting a HID device and displaying entry data.
 - Handles user interactions and communicates with the main process via IPC.
 
-#### **libnut.node**
-- The Node Native Module that emulates keystrokes using the Windows native input API.
-- Compliled from source by Electron when this application is packaged for release.
+#### **db.js**
+- Uses Knex (Object-Relational Mapper) to start a SQLite3 database instance, and export a connection to that instance. It also defines the shape of the table and creates that table if it doesn't already exist.
+
+#### **GuestEntry.js**
+- Contains the individual functions used to interact with the table **"GuestEntry"** in the database. The names of each function tell you all you need to know about what they do.
+  - create
+  - createAnonymousEntry
+  - findEntry
+  - getAllEntries
+  - flush
 
 ---
+---
+
 
 ## **3. Security Considerations**
 
 ### **Data Handling**
 - The application processes data from HID devices, specifically extracting user identification information such as name and Onecard ID from card swipes.
-- No data is stored permanently or transmitted over a network. All data is processed in-memory and displayed in the application interface or passed to the OS using a native API call.
+- Any data stored permanently is stored in cleartext locally on the SQLite database. No data is transmitted over any network interface.
 
 ### **IPC Communication**
 - IPC (Inter-Process Communication) is used to facilitate communication between the main process and the renderer process.
@@ -93,12 +105,13 @@ The application consists of the following main components:
 
 ### **Device Access**
 - The application requires access to HID devices, specifically card swipe readers.
-- It uses the `node-hid` library to interact with these devices, which may require elevated permissions on some systems.
+- It uses the `node-hid` library to interact with these devices, which may require elevated permissions during setup on some systems.
 
 ### **Error Handling**
-- Errors during HID device detection, connection, or data processing are logged to the console and displayed in the UI.
-- The application ensures that errors do not crash the process, and users are informed of any issues.
+- Errors during HID device detection, connection, or data processing are logged to the console (only viewable before packaging) and displayed in the UI.
+- The application ensures that errors do not crash the process, and users are informed of any issues they are able to resolve.
 
+---
 ---
 
 ## **4. Installation and Setup**
@@ -107,7 +120,7 @@ The application consists of the following main components:
 - **Operating System**: Windows 10/11
 
 ### **Installation Steps**
-1. Run the installer onecard-swipeout-setup-win32.exe
+1. Run the installer onecard-swipeout-setup.msi
 
 
 ### **Configuration**
@@ -122,14 +135,15 @@ The application consists of the following main components:
 - The application window will open, and the detection of HID devices will begin automatically.
 
 ### **Normal Operation**
-- If a MagTek MSR device is detected, the application will start listening for card swipes immediately.
+- If a MagTek MSR device is detected, the application will start listening for card swipes immediately. The key-down event listener for the key "F24" will also begin automatically.
 - If no MagTek devices are detected, a dropdown will appear in the UI for the user to select the appropriate device. This is to allow other HID-enabled MSR devices to be used, should users prefer a different manufacturer.
-- Swipe data is parsed and displayed in the application interface, and keystrokes are fired emulating the typing of the 7-digit onecard ID#.
+- Swipe data is parsed and displayed in the application interface. That same data is saved to a row in the database locally. The key-down event "F24" also causes anonymous entry data to be displayed in the UI and a matching row is inserted to the table. There is a 2.5sec debounce timeout to prevent accidental duplicate entries of anonymous users, as they cannot be easily identified after being created.
 
 ### **Shutting Down**
-- Close the application window, which will trigger the `before-quit` event to safely close the HID listener.
+- Closing the application window will trigger the `before-quit` event to safely close the HID listener. This prevents any orphaned processes or threads from lingering after the UI is closed.
 - The application will ensure all resources are released before quitting. No threads remain open/running after the main thread is terminated.
 
+---
 ---
 
 ## **6. Maintenance and Support**
@@ -138,13 +152,14 @@ The application consists of the following main components:
 - As of the initial release, no plans for additional functionality have been made and no support or updates are to be provided.
 
 ### **Known Issues and Limitations**
-- The application does not support all types of HID devices; it is specifically designed for MagTek card readers. Users may attempt other MSR devices but they must be HID-enabled.
+- The application does not support all types of HID devices; it is specifically designed for MagTek card readers. Users may attempt other MSR devices but they must be HID-capable.
 - If the HID device is disconnected during operation, the application may need to be restarted.
 
 ### **Troubleshooting**
-- **No HID devices detected**: Ensure the device is properly connected and recognized by the operating system.
-- **Application crashes**: Uninstall the application via the Windows appwiz.cpl control panel menu and reinstall with the provided installer.
+- **No HID devices detected**: Ensure the device is properly connected and recognized by the operating system. You may need to install appropriate drivers.
+- **Application crashes**: Uninstall the application via the Windows appwiz.cpl control panel interface and reinstall with the provided installer.
 
+---
 ---
 
 ## **7. Compliance and Legal Considerations**
@@ -155,21 +170,23 @@ The application consists of the following main components:
 - Dependencies are licensed for commercial use under open-source licenses (see `package.json` for details).
 
 ### **Data Compliance**
-- The application does not store or transmit personal data; however, it is designed to process user identification information. Ensure compliance with local data protection regulations if modifications are made that affect data handling.
+- The application does not transmit personal data beyond the scope of the computer it is installed on; however, it is designed to process user identification information. Ensure compliance with local data protection regulations if modifications are made that affect data handling. Data created is not encrypted or obfuscated in any way.
 
+---
 ---
 
 ## **8. Conclusion**
 
 ### **Final Notes**
-- This documentation provides a comprehensive overview of the Onecard Swipeout Application, its architecture, security considerations, and operational procedures.
+- This documentation provides a comprehensive overview of the Wolfpack Guestbook Application, its architecture, security considerations, and operational procedures.
 - Please refer to the appendices for additional technical details and troubleshooting tips.
 
 ### **Contact Information**
-- **Developer**: DaveLuhman
+- **Developer**: Dave Luhman
 - **Email**: dave@ado.software
 - **GitHub**: https://github.com/DaveLuhman
 
+---
 ---
 
 ## **9. Appendices (Optional)**

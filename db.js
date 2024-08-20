@@ -15,7 +15,7 @@ connectDB.schema.hasTable('GuestEntry').then(exists => {
       table.increments('id').primary();
       table.integer('onecard')
       table.string('name').notNullable();
-      table.datetime('entryTime').notNullable();
+      table.datetime('entryTime').notNullable().defaultTo(dayjs());
     });
   }
 }).then(() => {
