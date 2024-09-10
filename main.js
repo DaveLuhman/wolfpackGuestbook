@@ -6,13 +6,14 @@ const {
   dialog,
   globalShortcut,
 } = require("electron");
-const path = require("path");
+const path = require("node:path");
 const connectDB = require("./db.js");
 const GuestEntry = require("./GuestEntry.js");
 const { getMagtekSwiper, startListeningToSwiper } = require("./magtekSwiper.js");
 const { createObjectCsvWriter } = require("csv-writer");
 
-let mainWindow, viewerWindow;
+let mainWindow;
+let viewerWindow;
 
 const appIcon = nativeImage.createFromPath(
   path.join(__dirname, "img", "favicon-32.png")
@@ -32,14 +33,9 @@ function createMainWindow() {
 
   mainWindow.setIcon(appIcon);
   mainWindow.loadFile("index.html");
-  mainWindow.on("closed", function () {
+  mainWindow.on("closed", () => {
     mainWindow = null;
     app.quit(); // Ensure the application exits when the window is closed
-  })
-  // Once the window is fully loaded, start the HID detection process
-  mainWindow.webContents.on('did-finish-load', () => {
-    console.log('Window fully loaded, starting HID detection...')
-    initializeSwiper()
   })
 }
 async function initializeSwiper() {
@@ -101,6 +97,7 @@ app.on("ready", () => {
   connectDB();
 
   globalShortcut.register("F24", guestButtonPressCallback);
+
   const onSwipe = async (error, onecardData) => {
     if (error) {
       console.error("Error during swipe:", error.message);
@@ -129,8 +126,8 @@ app.on("ready", () => {
     }
   };
   console.log("Looking for Mag-Tek Swiper or other HID devices...");
-  startListeningToSwiper(onSwipe).catch(console.error);
-  ipcMain.on("reload-swiper", startListeningToSwiper);
+initializeSwiper().catch(error)
+  ipcMain.on("reload-swiper", initializeSwiper);
 });
 
 function createViewerWindow() {
@@ -147,12 +144,12 @@ function createViewerWindow() {
 
   viewerWindow.setIcon(appIcon);
   viewerWindow.loadFile("viewer.html");
-  viewerWindow.on("closed", function () {
+  viewerWindow.on("closed", () => {
     viewerWindow = null;
   });
 }
 // open viewer window when logo on main window is clicked
-ipcMain.on("open-viewer-window", function () {
+ipcMain.on("open-viewer-window", () => {
   if (!viewerWindow) {
     createViewerWindow();
   }
@@ -217,14 +214,14 @@ ipcMain.on("flush-data", async (event) => {
   }
 });
 
-app.on("window-all-closed", function () {
+app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
     globalShortcut.unregisterAll()
   }
 });
 
-app.on("activate", function () {
+app.on("activate", () => {
   if (mainWindow === null) {
     createMainWindow();
   }
