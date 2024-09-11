@@ -13,8 +13,8 @@ module.exports = {
         language: 1033,
         manufacturer: 'ADO Software',
         icon: './img/favicon.ico',
-        name: 'Onecard SwipeOut',
-        description: "Reads MSR Swipe Data and Outputs 7d Onecard Numbers"
+        name: 'Wolfpack Guestbook',
+        description: "Locally tracks attendance based on onecard swipes or guest button use."
       },
     }
   ],
