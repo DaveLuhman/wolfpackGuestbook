@@ -23,12 +23,12 @@
   },
   "dependencies": {
     "@electron-forge/maker-wix": "^7.4.0",
+    "better-sqlite3": "^11.3.0",
     "csv-writer": "^1.6.0",
     "dayjs": "^1.11.12",
     "electron-squirrel-startup": "^1.0.1",
     "inquirer": "^10.1.8",
     "knex": "^3.1.0",
-    "node-hid": "^3.1.0",
-    "sqlite3": "^5.1.7"
+    "node-hid": "^3.1.0"
   }
 }

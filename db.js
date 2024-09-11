@@ -2,9 +2,9 @@ const knex = require('knex');
 const dayjs = require('dayjs')
 
 const connectDB = knex({
-  client: 'sqlite3',
+  client: 'better-sqlite3',
   connection: {
-    filename: "./guestbook.db"
+    filename: "~/wolfpackGuestbook/guestbook.db"
   },
   useNullAsDefault: true,
 })

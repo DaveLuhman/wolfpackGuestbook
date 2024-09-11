@@ -9,7 +9,7 @@ const GuestEntry = {
   },
   async createAnonymousEntry () {
     const entryTime = dayjs().format()
-    console.log(`Inserting anonymous entry`)
+    console.log("Inserting anonymous entry")
     return await db('GuestEntry').insert({onecard: 1000001, name: "Anonymous", entryTime})
   },
   async findEntry(onecard) {
