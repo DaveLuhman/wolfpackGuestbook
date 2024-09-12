@@ -15,7 +15,7 @@ module.exports = {
         icon: './img/favicon.ico',
         name: 'Wolfpack Guestbook',
         description: "Locally tracks attendance based on onecard swipes or guest button use."
-      },
+        },
     }
   ],
   plugins: [

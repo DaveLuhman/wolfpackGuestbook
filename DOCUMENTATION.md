@@ -1,4 +1,4 @@
-# **Electron HID Device Listener Application Documentation**
+# **Wolfpack Guestbook General Documentation**
 
 ## **1. Introduction**
 
@@ -6,7 +6,7 @@
 **Wolfpack Guestbook** - Version 1.0.0
 
 ### **Purpose**
-Wolfpack Guestbook is an Electron-based desktop application designed to track attendance volume as a fully-enclosed software solution.  It processes card swipe data or specific keystrokes to extract user identification information, optionally display the result to the screen, and store it to a local-only SQLite3 database. This can later be exported to CSV for further examination and analysis.
+Wolfpack Guestbook is an Electron-based desktop application designed to track attendance volume as a fully-enclosed software solution.  It processes card swipe data or virtual keystrokes to extract user identification information, optionally display the result to the screen, and store it to a local-only SQLite3 database. This can later be exported to CSV for further examination and analysis.
 
 ### **Target Audience**
 This application is intended for internal use by staff managing attendance of events at Madison Area Technical College.
