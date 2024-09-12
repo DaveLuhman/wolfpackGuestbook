@@ -12,6 +12,7 @@ const GuestEntry = require("./GuestEntry.js");
 const {
 	getMagtekSwiper,
 	startListeningToSwiper,
+	closeSwiper,
 } = require("./magtekSwiper.js");
 const { createObjectCsvWriter } = require("csv-writer");
 
@@ -38,6 +39,7 @@ function createMainWindow() {
 	mainWindow.loadFile("index.html");
 	mainWindow.on("closed", () => {
 		mainWindow = null;
+		closeSwiper()
 		app.quit(); // Ensure the application exits when the window is closed
 	});
 }
@@ -93,7 +95,7 @@ async function initializeSwiper() {
 	}
 }
 let debounceTimeout;
-const DEBOUNCE_TIME = 3000; // 3000ms or 3 seconds
+const DEBOUNCE_TIME = 1500; // 1500ms or 1.5 seconds
 const guestButtonPressCallback = async () => {
 	if (debounceTimeout) {
 		console.log("F24 press ignored due to active timeout.");

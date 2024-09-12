@@ -7,7 +7,7 @@ const path = require("node:path");
 
 function checkForDatabaseFile() {
 	const appDataPath = process.env.APPDATA;
-	const directoryPath = path.join(appDataPath, "wolfpackGuestbook");
+	const directoryPath = path.join(appDataPath, "wolfpack-guestbook");
 	const filePath = path.join(directoryPath, "guestbook.db");
 
 	// Check if directory exists
@@ -57,7 +57,7 @@ checkForDatabaseFile();
 const connectDB = knex({
 	client: "better-sqlite3",
 	connection: {
-		filename: `${process.env.APPDATA}/wolfpackGuestbook/guestbook.db`,
+		filename: `${process.env.APPDATA}/wolfpack-guestbook/guestbook.db`,
 	},
 	useNullAsDefault: true,
 });
