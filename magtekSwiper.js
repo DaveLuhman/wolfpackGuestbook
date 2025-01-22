@@ -49,10 +49,43 @@ const startListeningToSwiper = async (path, callback) => {
                 callback(error) // Pass the error to the callback
             }
         })
+        swiper.on('error', (error) => {
+            console.error('HID device error:', error.message);
+            callback(new Error('HID device disconnected. Attempting to reconnect...'));
+            attemptReconnection(path, callback);
+        });
     } catch (error) {
         callback(error) // Pass the error to the callback
     }
 }
+
+// Function to attempt reconnection
+const attemptReconnection = (path, callback) => {
+    setTimeout(async () => {
+        try {
+            console.log('Attempting to reconnect to HID device...');
+            swiper = new HID.HID(path);
+            swiper.on('data', (dataBuffer) => {
+                try {
+                    const swipeData = dataBuffer.toString('utf8');
+                    const onecardData = parseSwipeData(swipeData);
+                    callback(null, onecardData);
+                } catch (error) {
+                    callback(error);
+                }
+            });
+            swiper.on('error', (error) => {
+                console.error('HID device error:', error.message);
+                callback(new Error('HID device disconnected. Attempting to reconnect...'));
+                attemptReconnection(path, callback);
+            });
+        } catch (error) {
+            console.error('Reconnection attempt failed:', error.message);
+            attemptReconnection(path, callback);
+        }
+    }, 5000); // Retry every 5 seconds
+};
+
 // Function to close the HID device
 const closeSwiper = () => {
     if (swiper) {
