@@ -39,7 +39,7 @@ function createMainWindow() {
 	mainWindow.loadFile("index.html");
 	mainWindow.on("closed", () => {
 		mainWindow = null;
-		closeSwiper()
+		closeSwiper();
 		app.quit(); // Ensure the application exits when the window is closed
 	});
 }
@@ -120,14 +120,20 @@ const guestButtonPressCallback = async () => {
 		);
 	}
 };
-app.on("ready", () => {
+app.on("ready", async () => {
 	createMainWindow();
-	connectDB();
+	try {
+		await connectDB;
+		console.log("Database connected successfully.");
+	} catch (err) {
+		console.error("Failed to connect to the database:", err.message);
+		app.quit();
+	}
 
 	globalShortcut.register("F24", guestButtonPressCallback);
 
 	console.log("Looking for Mag-Tek Swiper or other HID devices...");
-	initializeSwiper()
+	initializeSwiper();
 	ipcMain.on("reload-swiper", initializeSwiper);
 });
 
@@ -217,8 +223,8 @@ ipcMain.on("flush-data", async (event) => {
 
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") {
-		app.quit();
 		globalShortcut.unregisterAll();
+		app.quit();
 	}
 });
 

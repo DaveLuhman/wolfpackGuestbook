@@ -60,25 +60,31 @@ const connectDB = knex({
 		filename: `${process.env.APPDATA}/wolfpack-guestbook/guestbook.db`,
 	},
 	useNullAsDefault: true,
+	
 });
 
-connectDB.schema
-	.hasTable("GuestEntry")
-	.then((exists) => {
-		if (!exists) {
-			return connectDB.schema.createTable("GuestEntry", (table) => {
+async function ensureTables() {
+	try {
+		const hasGuestEntryTable = await connectDB.schema.hasTable("GuestEntry");
+		if (!hasGuestEntryTable) {
+			await connectDB.schema.createTable("GuestEntry", (table) => {
 				table.increments("id").primary();
 				table.integer("onecard");
 				table.string("name").notNullable();
-				table.datetime("entryTime").notNullable().defaultTo(dayjs());
+				table.datetime("entryTime").notNullable().defaultTo(dayjs().format());
 			});
+			console.log("GuestEntry table created.");
 		}
-	})
-	.then(() => {
 		console.log("SQLite connected and table ensured.");
-	})
-	.catch((err) => {
+	} catch (err) {
 		console.error("Error setting up SQLite:", err.message);
-	});
+		throw err;
+	}
+}
+
+ensureTables().catch((err) => {
+	console.error("Failed to ensure tables:", err.message);
+	process.exit(1);
+});
 
 module.exports = connectDB;
