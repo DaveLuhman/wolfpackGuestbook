@@ -11,20 +11,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const pwdInput = document.getElementById('pwd');
 
   submitBtn.addEventListener('click', () => {
-    window.electronAPI.sendResponse(responseChannel, pwdInput.value);
+    window.Electron.sendResponse(responseChannel, pwdInput.value);
   });
 
   cancelBtn.addEventListener('click', () => {
-    window.electronAPI.sendResponse(responseChannel, null);
+    window.Electron.sendResponse(responseChannel, null);
   });
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
-      window.electronAPI.sendResponse(responseChannel, pwdInput.value);
+      window.Electron.sendResponse(responseChannel, pwdInput.value);
     } else if (event.key === 'Escape') {
       event.preventDefault();
-      window.electronAPI.sendResponse(responseChannel, null);
+      window.Electron.sendResponse(responseChannel, null);
     }
   });
 });

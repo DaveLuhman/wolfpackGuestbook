@@ -28,7 +28,6 @@ const appIcon = nativeImage.createFromPath(
 function promptForPassword(title, message) {
 	return new Promise((resolve, _reject) => {
 		const channelId = `password-prompt-response-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-		const basePath = `file:///${__dirname.replace(/\\/g, '/')}/`;
 		const promptWindow = new BrowserWindow({
 			width: 300,
 			height: 250,
@@ -53,13 +52,15 @@ function promptForPassword(title, message) {
 			});
 		}
 
+		// Read the CSS file and inline its contents
+		const styleContent = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf-8');
+
 		const htmlContent = `<!DOCTYPE html>
 <html>
 	<head>
 		<meta name="response-channel" content="${channelId}">
-		<base href="${basePath}">
 		<title>${title}</title>
-		<link rel="stylesheet" type="text/css" href="styles.css">
+		<style>${styleContent}</style>
 	</head>
 	<body>
 		<p class="prompt-message">${message}</p>
@@ -70,22 +71,21 @@ function promptForPassword(title, message) {
 		</div>
 		<script>
 			const responseChannel = "${channelId}";
-			const { ipcRenderer } = require('electron');
 			document.getElementById('submit').addEventListener('click', () => {
 				const value = document.getElementById('pwd').value;
-				ipcRenderer.send(responseChannel, value);
+				window.Electron.sendResponse(responseChannel, value);
 			});
 			document.getElementById('cancel').addEventListener('click', () => {
-				ipcRenderer.send(responseChannel, null);
+				window.Electron.sendResponse(responseChannel, null);
 			});
 			document.addEventListener('keydown', (event) => {
 				if (event.key === 'Enter') {
 					event.preventDefault();
 					const value = document.getElementById('pwd').value;
-					ipcRenderer.send(responseChannel, value);
+					window.Electron.sendResponse(responseChannel, value);
 				} else if (event.key === 'Escape') {
 					event.preventDefault();
-					ipcRenderer.send(responseChannel, null);
+					window.Electron.sendResponse(responseChannel, null);
 				}
 			});
 		</script>
@@ -96,7 +96,6 @@ function promptForPassword(title, message) {
 		promptWindow.once('ready-to-show', () => {
 			promptWindow.show();
 		});
-
 		ipcMain.once(channelId, (event, value) => {
 			resolve(value);
 			if (!promptWindow.isDestroyed()) {
@@ -259,6 +258,7 @@ function createViewerWindow() {
 	viewerWindow = new BrowserWindow({
 		width: 800,
 		height: 600,
+		alwaysOnTop: true,
 		webPreferences: {
 			nodeIntegration: true,
 			contextIsolation: false,
