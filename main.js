@@ -7,6 +7,7 @@ const {
 	globalShortcut,
 } = require("electron");
 const path = require("node:path");
+const fs = require('node:fs');
 const connectDB = require("./db.js");
 const GuestEntry = require("./GuestEntry.js");
 const {
@@ -18,10 +19,124 @@ const { createObjectCsvWriter } = require("csv-writer");
 
 let mainWindow;
 let viewerWindow;
+let viewerPassword = "";
 
 const appIcon = nativeImage.createFromPath(
 	path.join(__dirname, "img", "favicon-32.png"),
 );
+
+function promptForPassword(title, message) {
+	return new Promise((resolve, _reject) => {
+		const channelId = `password-prompt-response-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+		const promptWindow = new BrowserWindow({
+			width: 300,
+			height: 250,
+			title: title,
+			parent: mainWindow,
+			modal: true,
+			show: false,
+			webPreferences: {
+				preload: path.join(__dirname, 'promptPreload.js'),
+				nodeIntegration: false,
+				contextIsolation: true,
+				webSecurity: true
+			}
+		});
+
+		// Ensure the promptWindow closes if the main window is closed
+		if (mainWindow) {
+			mainWindow.on('closed', () => {
+				if (!promptWindow.isDestroyed()) {
+					promptWindow.close();
+				}
+			});
+		}
+
+		// Read the CSS file and inline its contents
+		const styleContent = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf-8');
+
+		const htmlContent = `<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="response-channel" content="${channelId}">
+		<title>${title}</title>
+		<style>${styleContent}</style>
+	</head>
+	<body>
+		<p class="prompt-message">${message}</p>
+		<input id="pwd" type="password" autofocus />
+		<div class="button-container">
+			<button id="submit">Submit</button>
+			<button id="cancel">Cancel</button>
+		</div>
+		<script>
+			const responseChannel = "${channelId}";
+			document.getElementById('submit').addEventListener('click', () => {
+				const value = document.getElementById('pwd').value;
+				window.Electron.sendResponse(responseChannel, value);
+			});
+			document.getElementById('cancel').addEventListener('click', () => {
+				window.Electron.sendResponse(responseChannel, null);
+			});
+			document.addEventListener('keydown', (event) => {
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					const value = document.getElementById('pwd').value;
+					window.Electron.sendResponse(responseChannel, value);
+				} else if (event.key === 'Escape') {
+					event.preventDefault();
+					window.Electron.sendResponse(responseChannel, null);
+				}
+			});
+		</script>
+	</body>
+</html>`;
+
+		promptWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+		promptWindow.once('ready-to-show', () => {
+			promptWindow.show();
+		});
+		ipcMain.once(channelId, (event, value) => {
+			resolve(value);
+			if (!promptWindow.isDestroyed()) {
+				promptWindow.close();
+			}
+		});
+	});
+}
+
+async function checkPasswordConfig() {
+	const configPath = path.join(__dirname, "wg_config.json");
+	let config = {};
+	let needsPrompt = false;
+	if (fs.existsSync(configPath)) {
+		try {
+			const rawData = fs.readFileSync(configPath);
+			config = JSON.parse(rawData);
+		} catch (err) {
+			console.error("Error reading wg_config.json:", err.message);
+			needsPrompt = true;
+		}
+		if (!Object.prototype.hasOwnProperty.call(config, "password")) {
+			needsPrompt = true;
+		}
+	} else {
+		needsPrompt = true;
+	}
+	if (needsPrompt) {
+		const enteredPwd = await promptForPassword("Configure Viewer Password", "Enter a password for the viewer window. Leave blank for no password:");
+		config.password = enteredPwd || "";
+		viewerPassword = config.password;
+		try {
+			fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+			console.log("wg_config.json created/updated with password");
+		} catch (err) {
+			console.error("Error writing wg_config.json:", err.message);
+		}
+	} else {
+		viewerPassword = config.password;
+	}
+}
 
 function createMainWindow() {
 	mainWindow = new BrowserWindow({
@@ -130,6 +245,8 @@ app.on("ready", async () => {
 		app.quit();
 	}
 
+	await checkPasswordConfig();
+
 	globalShortcut.register("F24", guestButtonPressCallback);
 
 	console.log("Looking for Mag-Tek Swiper or other HID devices...");
@@ -141,6 +258,7 @@ function createViewerWindow() {
 	viewerWindow = new BrowserWindow({
 		width: 800,
 		height: 600,
+		alwaysOnTop: true,
 		webPreferences: {
 			nodeIntegration: true,
 			contextIsolation: false,
@@ -156,7 +274,14 @@ function createViewerWindow() {
 	});
 }
 // open viewer window when logo on main window is clicked
-ipcMain.on("open-viewer-window", () => {
+ipcMain.on("open-viewer-window", async () => {
+	if (viewerPassword && viewerPassword !== "") {
+		const entered = await promptForPassword("Viewer Access", "Enter password to view entries:");
+		if (entered !== viewerPassword) {
+			dialog.showErrorBox("Access Denied", "Incorrect password!");
+			return;
+		}
+	}
 	if (!viewerWindow) {
 		createViewerWindow();
 	}
@@ -218,6 +343,31 @@ ipcMain.on("flush-data", async (event) => {
 		} catch (error) {
 			console.error("Error flushing data:", error.message);
 		}
+	}
+});
+
+ipcMain.on("set-password", async () => {
+	const enteredPwd = await promptForPassword("Set/Change Password", "Enter a new password for the viewer window. Leave blank for no password:");
+	const configPath = path.join(__dirname, "wg_config.json");
+	let config = {};
+
+	if (fs.existsSync(configPath)) {
+		try {
+			const rawData = fs.readFileSync(configPath);
+			config = JSON.parse(rawData);
+		} catch (err) {
+			console.error("Error reading wg_config.json:", err.message);
+		}
+	}
+
+	config.password = enteredPwd || "";
+	viewerPassword = config.password;
+
+	try {
+		fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+		console.log("wg_config.json updated with new password");
+	} catch (err) {
+		console.error("Error writing wg_config.json:", err.message);
 	}
 });
 
