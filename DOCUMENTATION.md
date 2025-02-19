@@ -3,7 +3,7 @@
 ## **1. Introduction**
 
 ### **Project Name**
-**Wolfpack Guestbook** - Version 1.0.0
+**Wolfpack Guestbook** - Version 1.0.4
 
 ### **Purpose**
 Wolfpack Guestbook is an Electron-based desktop application designed to track attendance volume as a fully-enclosed software solution.  It processes card swipe data or virtual keystrokes to extract user identification information, optionally display the result to the screen, and store it to a local-only SQLite3 database. This can later be exported to CSV for further examination and analysis.
@@ -37,12 +37,16 @@ The application automatically detects connected MagTek HID devices, allows the u
             A --> E[BrowserWindow - Load index.html]
             E -->|IPC| F[Renderer Process]
             A --> K[Database]
+            A --> M[Password Management]
+            A --> N[Viewer Window]
         end
 
         subgraph Renderer Process
             F[index.html] --> G[UI for HID Device Selection]
             F --> H[Display Swipe Data]
             F --> I[Error Handling UI]
+            N --> O[View/Export Entries]
+            N --> P[Password Protection]
         end
     end
 
@@ -51,6 +55,8 @@ The application automatically detects connected MagTek HID devices, allows the u
         D --> J
         L[SQLite3 Database Instance]
         K --> L
+        Q[Config File]
+        M --> Q
     end
 ```
 
@@ -89,6 +95,14 @@ The application consists of the following main components:
   - getAllEntries
   - flush
 
+#### **promptPreload.js**
+- Provides secure context bridge for password prompt windows
+- Exposes limited IPC functionality to the renderer process
+
+#### **promptRenderer.js**
+- Handles UI interactions for password prompt windows
+- Manages password input and submission
+
 ---
 ---
 
@@ -111,6 +125,11 @@ The application consists of the following main components:
 - Errors during HID device detection, connection, or data processing are logged to the console (only viewable before packaging) and displayed in the UI.
 - The application ensures that errors do not crash the process, and users are informed of any issues they are able to resolve.
 
+### **Password Protection**
+- The viewer window can be optionally protected with a password
+- Password is stored locally in a configuration file
+- Password can be changed or removed through the viewer interface
+
 ---
 ---
 
@@ -120,7 +139,7 @@ The application consists of the following main components:
 - **Operating System**: Windows 10/11
 
 ### **Installation Steps**
-1. Run the installer onecard-swipeout-setup.msi
+1. Run the installer wolfpack-guestbook-setup.msi
 
 
 ### **Configuration**
@@ -138,6 +157,14 @@ The application consists of the following main components:
 - If a MagTek MSR device is detected, the application will start listening for card swipes immediately. The key-down event listener for the key "F24" will also begin automatically.
 - If no MagTek devices are detected, a dropdown will appear in the UI for the user to select the appropriate device. This is to allow other HID-enabled MSR devices to be used, should users prefer a different manufacturer.
 - Swipe data is parsed and displayed in the application interface. That same data is saved to a row in the database locally. The key-down event "F24" also causes anonymous entry data to be displayed in the UI and a matching row is inserted to the table. There is a 2.5sec debounce timeout to prevent accidental duplicate entries of anonymous users, as they cannot be easily identified after being created.
+
+### **Viewing and Exporting Data**
+- Click the application logo to open the viewer window
+- If password protection is enabled, enter the correct password to access
+- View all entries in a tabular format
+- Export data to CSV format for external analysis
+- Flush all data with confirmation
+- Set or change the viewer password
 
 ### **Shutting Down**
 - Closing the application window will trigger the `before-quit` event to safely close the HID listener. This prevents any orphaned processes or threads from lingering after the UI is closed.
@@ -211,8 +238,12 @@ The application consists of the following main components:
 
 ### **Changelog**
 - **Version 1.0.0**: Initial release.
+- **Version 1.0.1**: Fixed an issue where the application would not display swipe data.
+- **Version 1.0.2**: Fixed an issue where the application would crash if no HID devices were detected.
+- **Version 1.0.3**: Fixed an issue where the application would not detect new HID devices.
+- **Version 1.0.4**: Added password protection to the viewer window.
 
 ### **Dependency List**
 - **Electron**: MIT License
 - **node-hid**: MIT License
-- **NUT.js**: Apache 2.0 License
+
