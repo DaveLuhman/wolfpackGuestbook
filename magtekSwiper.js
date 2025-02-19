@@ -96,10 +96,11 @@ const attemptReconnection = (path, callback) => {
                 callback(new Error('HID device disconnected. Attempting to reconnect...'));
                 attemptReconnection(path, callback);
             });
-            isReconnecting = false; // Reset reconnection flag
         } catch (error) {
             console.error('Reconnection attempt failed:', error.message);
             attemptReconnection(path, callback);
+        } finally {
+            isReconnecting = false; // Reset reconnection flag
         }
     }, 5000); // Retry every 5 seconds
 };
