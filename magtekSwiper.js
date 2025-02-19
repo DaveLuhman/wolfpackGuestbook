@@ -1,6 +1,9 @@
 const HID = require('node-hid')
 
 let swiper;
+let reconnectionAttempts = 0;
+const MAX_RECONNECTION_ATTEMPTS = 10;
+let isReconnecting = false;
 
 const parseSwipeData = (data) => {
     try {
@@ -61,9 +64,23 @@ const startListeningToSwiper = async (path, callback) => {
 
 // Function to attempt reconnection
 const attemptReconnection = (path, callback) => {
+    if (isReconnecting) return; // Prevent concurrent reconnection attempts
+    isReconnecting = true;
+
+    if (reconnectionAttempts >= MAX_RECONNECTION_ATTEMPTS) {
+        console.error('Max reconnection attempts reached. Stopping further attempts.');
+        callback(new Error('Unable to reconnect to HID device after multiple attempts.'));
+        isReconnecting = false; // Reset reconnection flag
+        return;
+    }
+    reconnectionAttempts++;
     setTimeout(async () => {
         try {
-            console.log('Attempting to reconnect to HID device...');
+            if (swiper) {
+                swiper.close(); // Close existing instance
+                swiper = null;
+            }
+            console.log(`Attempting to reconnect to HID device... (Attempt ${reconnectionAttempts})`);
             swiper = new HID.HID(path);
             swiper.on('data', (dataBuffer) => {
                 try {
@@ -79,6 +96,7 @@ const attemptReconnection = (path, callback) => {
                 callback(new Error('HID device disconnected. Attempting to reconnect...'));
                 attemptReconnection(path, callback);
             });
+            isReconnecting = false; // Reset reconnection flag
         } catch (error) {
             console.error('Reconnection attempt failed:', error.message);
             attemptReconnection(path, callback);
