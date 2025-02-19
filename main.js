@@ -27,6 +27,7 @@ const appIcon = nativeImage.createFromPath(
 
 function promptForPassword(title, message) {
 	return new Promise((resolve, _reject) => {
+		const channelId = `password-prompt-response-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 		const basePath = `file:///${__dirname.replace(/\\/g, '/')}/`;
 		const promptWindow = new BrowserWindow({
 			width: 300,
@@ -36,56 +37,51 @@ function promptForPassword(title, message) {
 			modal: true,
 			show: false,
 			webPreferences: {
-				nodeIntegration: true,
-				contextIsolation: false,
-				webSecurity: false
-			},
+				preload: path.join(__dirname, 'promptPreload.js'),
+				nodeIntegration: false,
+				contextIsolation: true,
+				webSecurity: true
+			}
 		});
-		const htmlContent = `
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<base href="${basePath}">
-				<title>${title}</title>
-				<link rel="stylesheet" type="text/css" href="styles.css">
-			</head>
-			<body>
-				<p class="prompt-message">${message}</p>
-				<input id="pwd" type="password" autofocus />
-				<div class="button-container">
-					<button id="submit">Submit</button>
-					<button id="cancel">Cancel</button>
-				</div>
-				<script>
-					const { ipcRenderer } = require('electron');
-					document.getElementById('submit').addEventListener('click', () => {
-						const value = document.getElementById('pwd').value;
-						ipcRenderer.send('password-prompt-response', value);
-					});
-					document.getElementById('cancel').addEventListener('click', () => {
-						ipcRenderer.send('password-prompt-response', null);
-					});
-					document.addEventListener('keydown', (event) => {
-						if (event.key === 'Enter') {
-							event.preventDefault();
-							const value = document.getElementById('pwd').value;
-							ipcRenderer.send('password-prompt-response', value);
-						} else if (event.key === 'Escape') {
-							event.preventDefault();
-							ipcRenderer.send('password-prompt-response', null);
-						}
-					});
-				</script>
-			</body>
-			</html>
-		`;
+
+		// Ensure the promptWindow closes if the main window is closed
+		if (mainWindow) {
+			mainWindow.on('closed', () => {
+				if (!promptWindow.isDestroyed()) {
+					promptWindow.close();
+				}
+			});
+		}
+
+		const htmlContent = `<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="response-channel" content="${channelId}">
+		<base href="${basePath}">
+		<title>${title}</title>
+		<link rel="stylesheet" type="text/css" href="styles.css">
+	</head>
+	<body>
+		<p class="prompt-message">${message}</p>
+		<input id="pwd" type="password" autofocus />
+		<div class="button-container">
+			<button id="submit">Submit</button>
+			<button id="cancel">Cancel</button>
+		</div>
+		<script src="promptRenderer.js"></script>
+	</body>
+</html>`;
+
 		promptWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 		promptWindow.once('ready-to-show', () => {
 			promptWindow.show();
 		});
-		ipcMain.once('password-prompt-response', (event, value) => {
+
+		ipcMain.once(channelId, (event, value) => {
 			resolve(value);
-			promptWindow.close();
+			if (!promptWindow.isDestroyed()) {
+				promptWindow.close();
+			}
 		});
 	});
 }
