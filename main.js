@@ -29,7 +29,7 @@ function promptForPassword(title, message) {
 	return new Promise((resolve, _reject) => {
 		const promptWindow = new BrowserWindow({
 			width: 300,
-			height: 150,
+			height: 250,
 			title: title,
 			parent: mainWindow,
 			modal: true,
@@ -40,11 +40,50 @@ function promptForPassword(title, message) {
 			},
 		});
 		const htmlContent = `
+			<!DOCTYPE html>
 			<html>
+			<head>
+				<title>${title}</title>
+				<style>
+					body {
+						font-family: "Poppins", sans-serif;
+						background-color: #00447c;
+						color: white;
+						display: flex;
+						flex-direction: column;
+						align-items: center;
+						justify-content: center;
+						height: 100vh;
+						margin: 0;
+					}
+					h3 {
+						margin-bottom: 20px;
+					}
+					input {
+						width: 80%;
+						padding: 10px;
+						margin-bottom: 20px;
+						border: none;
+						border-radius: 5px;
+					}
+					button {
+						padding: 10px 20px;
+						margin: 5px;
+						border: none;
+						border-radius: 5px;
+						background-color: #007bff;
+						color: white;
+						cursor: pointer;
+					}
+					button:hover {
+						background-color: #0056b3;
+					}
+				</style>
+			</head>
 			<body>
 				<h3>${message}</h3>
-				<input id="pwd" type="password" autofocus style="width: 100%" />
-				<div style="margin-top: 10px;">
+				<input id="pwd" type="password" autofocus />
+				<div>
 					<button id="submit">Submit</button>
 					<button id="cancel">Cancel</button>
 				</div>
@@ -309,6 +348,31 @@ ipcMain.on("flush-data", async (event) => {
 		} catch (error) {
 			console.error("Error flushing data:", error.message);
 		}
+	}
+});
+
+ipcMain.on("set-password", async () => {
+	const enteredPwd = await promptForPassword("Set/Change Password", "Enter a new password for the viewer window. Leave blank for no password:");
+	const configPath = path.join(__dirname, "wg_config.json");
+	let config = {};
+
+	if (fs.existsSync(configPath)) {
+		try {
+			const rawData = fs.readFileSync(configPath);
+			config = JSON.parse(rawData);
+		} catch (err) {
+			console.error("Error reading wg_config.json:", err.message);
+		}
+	}
+
+	config.password = enteredPwd || "";
+	viewerPassword = config.password;
+
+	try {
+		fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+		console.log("wg_config.json updated with new password");
+	} catch (err) {
+		console.error("Error writing wg_config.json:", err.message);
 	}
 });
 

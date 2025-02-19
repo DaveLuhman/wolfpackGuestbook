@@ -57,6 +57,7 @@
     <button id="reload-table">Reload Data</button>
     <button id="export-csv">Export to CSV</button>
     <button id="flush-data">Flush Data</button>
+    <button id="set-password">Set/Change Password</button>
   </div>
   <table>
     <thead>
@@ -94,6 +95,10 @@
 
     document.getElementById("flush-data").addEventListener("click", () => {
       ipcRenderer.send("flush-data");
+    });
+
+    document.getElementById("set-password").addEventListener("click", () => {
+      ipcRenderer.send("set-password");
     });
 
     ipcRenderer.send("request-entries");
