@@ -68,7 +68,27 @@ function promptForPassword(title, message) {
 			<button id="submit">Submit</button>
 			<button id="cancel">Cancel</button>
 		</div>
-		<script src="promptRenderer.js"></script>
+		<script>
+			const responseChannel = "${channelId}";
+			const { ipcRenderer } = require('electron');
+			document.getElementById('submit').addEventListener('click', () => {
+				const value = document.getElementById('pwd').value;
+				ipcRenderer.send(responseChannel, value);
+			});
+			document.getElementById('cancel').addEventListener('click', () => {
+				ipcRenderer.send(responseChannel, null);
+			});
+			document.addEventListener('keydown', (event) => {
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					const value = document.getElementById('pwd').value;
+					ipcRenderer.send(responseChannel, value);
+				} else if (event.key === 'Escape') {
+					event.preventDefault();
+					ipcRenderer.send(responseChannel, null);
+				}
+			});
+		</script>
 	</body>
 </html>`;
 
