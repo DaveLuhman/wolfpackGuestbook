@@ -27,6 +27,7 @@ const appIcon = nativeImage.createFromPath(
 
 function promptForPassword(title, message) {
 	return new Promise((resolve, _reject) => {
+		const basePath = `file:///${__dirname.replace(/\\/g, '/')}/`;
 		const promptWindow = new BrowserWindow({
 			width: 300,
 			height: 250,
@@ -37,53 +38,21 @@ function promptForPassword(title, message) {
 			webPreferences: {
 				nodeIntegration: true,
 				contextIsolation: false,
+				webSecurity: false
 			},
 		});
 		const htmlContent = `
 			<!DOCTYPE html>
 			<html>
 			<head>
+				<base href="${basePath}">
 				<title>${title}</title>
-				<style>
-					body {
-						font-family: "Poppins", sans-serif;
-						background-color: #00447c;
-						color: white;
-						display: flex;
-						flex-direction: column;
-						align-items: center;
-						justify-content: center;
-						height: 100vh;
-						margin: 0;
-					}
-					h3 {
-						margin-bottom: 20px;
-					}
-					input {
-						width: 80%;
-						padding: 10px;
-						margin-bottom: 20px;
-						border: none;
-						border-radius: 5px;
-					}
-					button {
-						padding: 10px 20px;
-						margin: 5px;
-						border: none;
-						border-radius: 5px;
-						background-color: #007bff;
-						color: white;
-						cursor: pointer;
-					}
-					button:hover {
-						background-color: #0056b3;
-					}
-				</style>
+				<link rel="stylesheet" type="text/css" href="styles.css">
 			</head>
 			<body>
-				<h3>${message}</h3>
+				<p class="prompt-message">${message}</p>
 				<input id="pwd" type="password" autofocus />
-				<div>
+				<div class="button-container">
 					<button id="submit">Submit</button>
 					<button id="cancel">Cancel</button>
 				</div>
@@ -95,6 +64,16 @@ function promptForPassword(title, message) {
 					});
 					document.getElementById('cancel').addEventListener('click', () => {
 						ipcRenderer.send('password-prompt-response', null);
+					});
+					document.addEventListener('keydown', (event) => {
+						if (event.key === 'Enter') {
+							event.preventDefault();
+							const value = document.getElementById('pwd').value;
+							ipcRenderer.send('password-prompt-response', value);
+						} else if (event.key === 'Escape') {
+							event.preventDefault();
+							ipcRenderer.send('password-prompt-response', null);
+						}
 					});
 				</script>
 			</body>
