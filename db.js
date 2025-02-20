@@ -1,66 +1,62 @@
 const knex = require("knex");
 const dayjs = require("dayjs");
 const Database = require("better-sqlite3");
-
 const fs = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
 
-function checkForDatabaseFile() {
-	const appDataPath = process.env.APPDATA;
-	const directoryPath = path.join(appDataPath, "wolfpack-guestbook");
-	const filePath = path.join(directoryPath, "guestbook.db");
-
-	// Check if directory exists
-	fs.stat(directoryPath, (err, stats) => {
-		if (err) {
-			// Directory does not exist, create it
-			fs.mkdir(directoryPath, { recursive: true }, (err) => {
-				if (err) {
-					console.error("Error creating directory:", err);
-					return;
-				}
-
-				// Directory created, now create the file
-				fs.writeFile(filePath, "", (err) => {
-					if (err) {
-						console.error("Error creating file:", err);
-					} else {
-						console.log("File created successfully.");
-					}
-				});
-			});
-		} else if (stats.isDirectory()) {
-			// Directory exists, now check if the file exists
-			fs.stat(filePath, (err) => {
-				if (err) {
-					// File does not exist, create it
-					fs.writeFile(filePath, "",  (err) => {
-						if (err) {
-							console.error("Error creating file:", err);
-						} else {
-							console.log("File created successfully.");
-						}
-					});
-				} else {
-					console.log("File already exists.");
-				}
-			});
-		} else {
-			console.error("Path exists but is not a directory.");
-		}
-	});
+function getSharedDbPath() {
+	// Determine platform-specific shared location
+	switch (process.platform) {
+		case 'win32':
+			// On Windows, use ProgramData which is typically C:\ProgramData
+			return path.join(process.env.PROGRAMDATA || 'C:\\ProgramData', 'wolfpack-guestbook');
+		case 'darwin':
+			// On macOS, use /Library/Application Support
+			return '/Library/Application Support/wolfpack-guestbook';
+		default:
+			// On Linux and others, use /var/lib
+			return '/var/lib/wolfpack-guestbook';
+	}
 }
 
-// Call the function
-checkForDatabaseFile();
+function checkForDatabaseFile() {
+	const directoryPath = getSharedDbPath();
+	const filePath = path.join(directoryPath, 'guestbook.db');
+
+	try {
+		// Create directory with appropriate permissions
+		if (!fs.existsSync(directoryPath)) {
+			fs.mkdirSync(directoryPath, { recursive: true, mode: 0o777 });
+			console.log('Created shared directory:', directoryPath);
+		}
+
+		// Create file if it doesn't exist
+		if (!fs.existsSync(filePath)) {
+			fs.writeFileSync(filePath, '', { mode: 0o666 });
+			console.log('Created database file:', filePath);
+		}
+
+		// Ensure proper permissions on existing files
+		fs.chmodSync(directoryPath, 0o777);
+		fs.chmodSync(filePath, 0o666);
+
+		return filePath;
+	} catch (err) {
+		console.error('Error setting up database file:', err);
+		throw new Error(`Failed to setup database in shared location: ${err.message}`);
+	}
+}
+
+// Initialize database file
+const dbPath = checkForDatabaseFile();
 
 const connectDB = knex({
 	client: "better-sqlite3",
 	connection: {
-		filename: `${process.env.APPDATA}/wolfpack-guestbook/guestbook.db`,
+		filename: dbPath,
 	},
 	useNullAsDefault: true,
-	
 });
 
 async function ensureTables() {
