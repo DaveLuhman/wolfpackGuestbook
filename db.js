@@ -9,8 +9,8 @@ function getSharedDbPath() {
 	// Determine platform-specific shared location
 	switch (process.platform) {
 		case 'win32':
-			// On Windows, use ProgramData which is typically C:\ProgramData
-			return path.join(process.env.PROGRAMDATA || 'C:\\ProgramData', 'wolfpack-guestbook');
+			// On Windows, use the Public directory which is accessible to all users
+			return path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'wolfpack-guestbook');
 		case 'darwin':
 			// On macOS, use /Library/Application Support
 			return '/Library/Application Support/wolfpack-guestbook';
