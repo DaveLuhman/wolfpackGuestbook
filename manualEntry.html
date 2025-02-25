@@ -41,6 +41,12 @@
                 errorMessage.textContent = 'Both Name and Onecard are required.';
                 return;
             }
+
+            if (!/^\d{7}$/.test(onecard)) {
+                errorMessage.textContent = 'Onecard must be exactly 7 digits.';
+                return;
+            }
+
             // Send the manual entry data via IPC
             ipcRenderer.send('manual-entry-submit', { name, onecard });
         });
