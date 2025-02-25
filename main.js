@@ -5,6 +5,7 @@ const {
 	nativeImage,
 	dialog,
 	globalShortcut,
+	Menu,
 } = require("electron");
 const path = require("node:path");
 const fs = require('node:fs');
@@ -237,6 +238,19 @@ const guestButtonPressCallback = async () => {
 };
 app.on("ready", async () => {
 	createMainWindow();
+	// Added file menu with Manual Entry
+	const menuTemplate = [
+		{
+			label: "File",
+			submenu: [
+				{ label: "Manual Entry", click: () => { createManualEntryWindow(); } },
+				{ role: "quit" }
+			]
+		}
+	];
+	const menu = Menu.buildFromTemplate(menuTemplate);
+	Menu.setApplicationMenu(menu);
+
 	try {
 		await connectDB;
 		console.log("Database connected successfully.");
@@ -273,6 +287,27 @@ function createViewerWindow() {
 		viewerWindow = null;
 	});
 }
+
+function createManualEntryWindow() {
+	let manualEntryWindow = new BrowserWindow({
+		width: 400,
+		height: 300,
+		parent: mainWindow,
+		modal: true,
+		resizable: false,
+		webPreferences: {
+			nodeIntegration: true,
+			contextIsolation: false,
+		},
+		title: "Manual Entry"
+	});
+	manualEntryWindow.setMenu(null);
+	manualEntryWindow.loadFile("manualEntry.html");
+	manualEntryWindow.on("closed", () => {
+		manualEntryWindow = null;
+	});
+}
+
 // open viewer window when logo on main window is clicked
 ipcMain.on("open-viewer-window", async () => {
 	if (viewerPassword && viewerPassword !== "") {
@@ -368,6 +403,18 @@ ipcMain.on("set-password", async () => {
 		console.log("wg_config.json updated with new password");
 	} catch (err) {
 		console.error("Error writing wg_config.json:", err.message);
+	}
+});
+
+// Added IPC handler for manual entry submission
+ipcMain.on("manual-entry-submit", async (event, data) => {
+	const entryTime = new Date().toLocaleString();
+	try {
+		await GuestEntry.create(data.onecard, data.name);
+		event.reply("manual-entry-success");
+		mainWindow.webContents.send("guest-entry", { name: data.name, onecard: data.onecard, entryTime: entryTime });
+	} catch (error) {
+		event.reply("manual-entry-error", error.message);
 	}
 });
 
