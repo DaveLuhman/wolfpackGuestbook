@@ -86,5 +86,44 @@ button:hover {
   margin-bottom: 10px;
 }
 
+/* Styles for the sticky top-bar */
+.top-bar {
+  position: sticky; /* keeps the header in view */
+  top: 0;
+  background-color: #B0B0B0; /* heather gray background */
+  padding: 10px;
+  z-index: 1000; /* ensures it stays above other content */
+  border-radius: 15px;
+  border-bottom: 1px solid #ccc;
+}
+
+/* Styles for the scrollable content area */
+.content {
+  overflow-y: auto;
+  max-height: calc(100vh - 60px); /* adjust 60px if your header has a different height */
+  padding: 10px;
+}
+
+/* Custom scrollbar styling for WebKit browsers */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: #001f3f; /* dark blue track */
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #ADD8E6; /* light blue thumb */
+  border-radius: 10px;
+  border: 2px solid #001f3f; /* adds a clear separation */
+}
+
+/* Custom scrollbar styling for Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ADD8E6 #001f3f;
+}
+
 
 

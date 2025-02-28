@@ -7,23 +7,32 @@
 </head>
 
 <body>
-  <h1>Guest Entries Viewer</h1>
-  <div class="button-container">
-    <button id="reload-table">Reload Data</button>
-    <button id="export-csv">Export to CSV</button>
-    <button id="flush-data">Flush Data</button>
-    <button id="set-password">Set/Change Password</button>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Onecard</th>
-        <th>Date/Time</th>
-      </tr>
-    </thead>
-    <tbody id="entries-table"></tbody>
-  </table>
+  <!-- Begin Sticky Top-Bar -->
+  <header class="top-bar">
+    <div class="button-container">
+      <button id="reload-table">Reload Data</button>
+      <button id="export-csv">Export to CSV</button>
+      <button id="flush-data">Flush Data</button>
+      <button id="set-password">Set/Change Password</button>
+    </div>
+  </header>
+  <!-- End Sticky Top-Bar -->
+
+  <!-- Begin Scrollable Content Section -->
+  <main class="content">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Onecard</th>
+          <th>Date/Time</th>
+        </tr>
+      </thead>
+      <tbody id="entries-table"></tbody>
+    </table>
+  </main>
+  <!-- End Scrollable Content Section -->
+
   <script>
     const { ipcRenderer } = require("electron");
     ipcRenderer.on("load-entries", (event, data) => {
