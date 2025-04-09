@@ -17,9 +17,9 @@ const {
 	closeSwiper,
 } = require("./magtekSwiper.js");
 const { createObjectCsvWriter } = require("csv-writer");
-const playSound = require('play-sound')(opts = {});
 const configManager = require('./configManager');
 const windowManager = require('./windowManager');
+const soundManager = require('./soundManager');
 
 let mainWindow;
 let viewerWindow;
@@ -28,26 +28,6 @@ let viewerPassword = "";
 const appIcon = nativeImage.createFromPath(
 	path.join(__dirname, "img", "favicon-32.png"),
 );
-
-// Sound feedback functions
-function playSuccessSound() {
-	if (configManager.getSoundEnabled()) {
-		playSound.play(path.join(__dirname, 'sounds', 'success.mp3'), function(err) {
-			if (err) console.error("Error playing success sound:", err);
-		});
-	}
-}
-
-function playErrorSound() {
-	if (configManager.getSoundEnabled()) {
-		playSound.play(path.join(__dirname, 'sounds', 'error.mp3'), function(err) {
-			if (err) console.error("Error playing error sound:", err);
-		});
-	}
-}
-
-// Initialize sound setting
-global.soundEnabled = true;
 
 function promptForPassword(title, message) {
 	return new Promise((resolve, _reject) => {
@@ -182,33 +162,34 @@ function createMainWindow() {
 		app.quit(); // Ensure the application exits when the window is closed
 	});
 }
+
 const onSwipe = async (error, onecardData) => {
 	if (error) {
 		console.error("Error during swipe:", error.message);
 		windowManager.getMainWindow().webContents.send("swipe-error", `Swipe error: ${error.message}`);
-		playErrorSound();
+		soundManager.playError();
 		return;
 	}
 
 	const { onecard, name } = onecardData;
 
 	try {
-		// Simply create a guest entry record
 		await GuestEntry.create(onecard, name);
 		windowManager.getMainWindow().webContents.send("guest-entry", {
 			name,
 			onecard,
 		});
-		playSuccessSound();
+		soundManager.playSuccess();
 	} catch (dbError) {
 		console.error("Error handling entry:", dbError.message);
 		windowManager.getMainWindow().webContents.send(
 			"entry-error",
 			`Database error: ${dbError.message}`,
 		);
-		playErrorSound();
+		soundManager.playError();
 	}
 };
+
 async function initializeSwiper() {
 	console.log("Looking for Mag-Tek Swiper or other HID devices...");
 	let HIDPath = await getMagtekSwiper();
@@ -236,6 +217,7 @@ async function initializeSwiper() {
 		}
 	}
 }
+
 let debounceTimeout;
 const DEBOUNCE_TIME = 1500; // 1500ms or 1.5 seconds
 const guestButtonPressCallback = async () => {
@@ -254,16 +236,17 @@ const guestButtonPressCallback = async () => {
 			onecard: null,
 			entryTime: new Date().toLocaleDateString(),
 		});
-		playSuccessSound();
+		soundManager.playSuccess();
 	} catch (error) {
 		console.error("Error handling entry:", error.message);
 		windowManager.getMainWindow().webContents.send(
 			"entry-error",
 			`Database error: ${error.message}`,
 		);
-		playErrorSound();
+		soundManager.playError();
 	}
 };
+
 app.on("ready", async () => {
 	windowManager.createMainWindow();
 	// Added file menu with Manual Entry and Sound Toggle
