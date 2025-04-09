@@ -14,7 +14,7 @@ class SoundManager {
     loadSounds() {
         try {
             // Load success sound
-            const successFile = fs.createReadStream(path.join(__dirname, 'sounds', 'success.mp3'));
+            const successFile = fs.createReadStream(path.join(__dirname, 'sounds', 'success.wav'));
             const successReader = new wav.Reader();
             successReader.on('format', (format) => {
                 this.successBuffer = {
@@ -28,7 +28,7 @@ class SoundManager {
             successFile.pipe(successReader);
 
             // Load error sound
-            const errorFile = fs.createReadStream(path.join(__dirname, 'sounds', 'error.mp3'));
+            const errorFile = fs.createReadStream(path.join(__dirname, 'sounds', 'error.wav'));
             const errorReader = new wav.Reader();
             errorReader.on('format', (format) => {
                 this.errorBuffer = {
@@ -71,4 +71,4 @@ class SoundManager {
     }
 }
 
-module.exports = new SoundManager(); 
+module.exports = new SoundManager();

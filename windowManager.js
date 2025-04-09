@@ -53,7 +53,7 @@ class WindowManager {
     }
 
     createManualEntryWindow() {
-        const manualEntryWindow = new BrowserWindow({
+        let manualEntryWindow = new BrowserWindow({
             width: 400,
             height: 300,
             parent: this.mainWindow,
@@ -77,13 +77,13 @@ class WindowManager {
             {
                 label: "File",
                 submenu: [
-                    { 
-                        label: "Manual Entry", 
-                        click: () => { this.createManualEntryWindow(); } 
+                    {
+                        label: "Manual Entry",
+                        click: () => { this.createManualEntryWindow(); }
                     },
-                    { 
-                        label: "Toggle Sounds", 
-                        click: () => { 
+                    {
+                        label: "Mute",
+                        click: () => {
                             const currentState = configManager.getSoundEnabled();
                             configManager.setSoundEnabled(!currentState);
                         },
@@ -107,4 +107,4 @@ class WindowManager {
     }
 }
 
-module.exports = new WindowManager(); 
+module.exports = new WindowManager();
