@@ -181,3 +181,4 @@ dist
 .vs
 dist
 *.db
+wg_config.json
