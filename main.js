@@ -17,6 +17,9 @@ const {
 	closeSwiper,
 } = require("./magtekSwiper.js");
 const { createObjectCsvWriter } = require("csv-writer");
+const playSound = require('play-sound')(opts = {});
+const configManager = require('./configManager');
+const windowManager = require('./windowManager');
 
 let mainWindow;
 let viewerWindow;
@@ -25,6 +28,26 @@ let viewerPassword = "";
 const appIcon = nativeImage.createFromPath(
 	path.join(__dirname, "img", "favicon-32.png"),
 );
+
+// Sound feedback functions
+function playSuccessSound() {
+	if (configManager.getSoundEnabled()) {
+		playSound.play(path.join(__dirname, 'sounds', 'success.mp3'), function(err) {
+			if (err) console.error("Error playing success sound:", err);
+		});
+	}
+}
+
+function playErrorSound() {
+	if (configManager.getSoundEnabled()) {
+		playSound.play(path.join(__dirname, 'sounds', 'error.mp3'), function(err) {
+			if (err) console.error("Error playing error sound:", err);
+		});
+	}
+}
+
+// Initialize sound setting
+global.soundEnabled = true;
 
 function promptForPassword(title, message) {
 	return new Promise((resolve, _reject) => {
@@ -162,7 +185,8 @@ function createMainWindow() {
 const onSwipe = async (error, onecardData) => {
 	if (error) {
 		console.error("Error during swipe:", error.message);
-		mainWindow.webContents.send("swipe-error", `Swipe error: ${error.message}`);
+		windowManager.getMainWindow().webContents.send("swipe-error", `Swipe error: ${error.message}`);
+		playErrorSound();
 		return;
 	}
 
@@ -171,16 +195,18 @@ const onSwipe = async (error, onecardData) => {
 	try {
 		// Simply create a guest entry record
 		await GuestEntry.create(onecard, name);
-		mainWindow.webContents.send("guest-entry", {
+		windowManager.getMainWindow().webContents.send("guest-entry", {
 			name,
 			onecard,
 		});
+		playSuccessSound();
 	} catch (dbError) {
 		console.error("Error handling entry:", dbError.message);
-		mainWindow.webContents.send(
+		windowManager.getMainWindow().webContents.send(
 			"entry-error",
 			`Database error: ${dbError.message}`,
 		);
+		playErrorSound();
 	}
 };
 async function initializeSwiper() {
@@ -190,12 +216,12 @@ async function initializeSwiper() {
 		console.log(
 			"Multiple HID devices detected, sending select-hid event to renderer.",
 		);
-		mainWindow.webContents.send("select-hid", HIDPath);
+		windowManager.getMainWindow().webContents.send("select-hid", HIDPath);
 		ipcMain.once("hid-selection", async (event, selectedPath) => {
 			console.log("HID device selected:", selectedPath);
 			HIDPath = selectedPath;
 			try {
-				mainWindow.setSize(400, 500);
+				windowManager.getMainWindow().setSize(400, 500);
 				await startListeningToSwiper(HIDPath, onSwipe);
 			} catch (error) {
 				console.error("Error starting swiper after selection:", error.message);
@@ -223,27 +249,54 @@ const guestButtonPressCallback = async () => {
 	}, DEBOUNCE_TIME);
 	try {
 		await GuestEntry.createAnonymousEntry();
-		mainWindow.webContents.send("guest-entry", {
+		windowManager.getMainWindow().webContents.send("guest-entry", {
 			name: "Guest Visitor",
 			onecard: null,
 			entryTime: new Date().toLocaleDateString(),
 		});
+		playSuccessSound();
 	} catch (error) {
 		console.error("Error handling entry:", error.message);
-		mainWindow.webContents.send(
+		windowManager.getMainWindow().webContents.send(
 			"entry-error",
 			`Database error: ${error.message}`,
 		);
+		playErrorSound();
 	}
 };
 app.on("ready", async () => {
-	createMainWindow();
-	// Added file menu with Manual Entry
+	windowManager.createMainWindow();
+	// Added file menu with Manual Entry and Sound Toggle
 	const menuTemplate = [
 		{
 			label: "File",
 			submenu: [
 				{ label: "Manual Entry", click: () => { createManualEntryWindow(); } },
+				{ 
+					label: "Toggle Sounds", 
+					click: () => { 
+						global.soundEnabled = !global.soundEnabled;
+						// Save the setting to config file
+						const configPath = path.join(__dirname, "wg_config.json");
+						let config = {};
+						if (fs.existsSync(configPath)) {
+							try {
+								const rawData = fs.readFileSync(configPath);
+								config = JSON.parse(rawData);
+							} catch (err) {
+								console.error("Error reading wg_config.json:", err.message);
+							}
+						}
+						config.soundEnabled = global.soundEnabled;
+						try {
+							fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+						} catch (err) {
+							console.error("Error writing wg_config.json:", err.message);
+						}
+					},
+					type: 'checkbox',
+					checked: global.soundEnabled
+				},
 				{ role: "quit" }
 			]
 		}
@@ -257,6 +310,20 @@ app.on("ready", async () => {
 	} catch (err) {
 		console.error("Failed to connect to the database:", err.message);
 		app.quit();
+	}
+
+	// Load sound setting from config
+	const configPath = path.join(__dirname, "wg_config.json");
+	if (fs.existsSync(configPath)) {
+		try {
+			const rawData = fs.readFileSync(configPath);
+			const config = JSON.parse(rawData);
+			if (typeof config.soundEnabled === 'boolean') {
+				global.soundEnabled = config.soundEnabled;
+			}
+		} catch (err) {
+			console.error("Error reading wg_config.json:", err.message);
+		}
 	}
 
 	await checkPasswordConfig();
@@ -310,9 +377,10 @@ function createManualEntryWindow() {
 
 // open viewer window when logo on main window is clicked
 ipcMain.on("open-viewer-window", async () => {
-	if (viewerPassword && viewerPassword !== "") {
+	const password = configManager.getPassword();
+	if (password && password !== "") {
 		const entered = await promptForPassword("Viewer Access", "Enter password to view entries:");
-		if (entered !== viewerPassword) {
+		if (entered !== password) {
 			dialog.showErrorBox("Access Denied", "Incorrect password!");
 			return;
 		}
@@ -383,27 +451,7 @@ ipcMain.on("flush-data", async (event) => {
 
 ipcMain.on("set-password", async () => {
 	const enteredPwd = await promptForPassword("Set/Change Password", "Enter a new password for the viewer window. Leave blank for no password:");
-	const configPath = path.join(__dirname, "wg_config.json");
-	let config = {};
-
-	if (fs.existsSync(configPath)) {
-		try {
-			const rawData = fs.readFileSync(configPath);
-			config = JSON.parse(rawData);
-		} catch (err) {
-			console.error("Error reading wg_config.json:", err.message);
-		}
-	}
-
-	config.password = enteredPwd || "";
-	viewerPassword = config.password;
-
-	try {
-		fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-		console.log("wg_config.json updated with new password");
-	} catch (err) {
-		console.error("Error writing wg_config.json:", err.message);
-	}
+	configManager.setPassword(enteredPwd || "");
 });
 
 // Added IPC handler for manual entry submission
@@ -412,7 +460,7 @@ ipcMain.on("manual-entry-submit", async (event, data) => {
 	try {
 		await GuestEntry.create(data.onecard, data.name);
 		event.reply("manual-entry-success");
-		mainWindow.webContents.send("guest-entry", { name: data.name, onecard: data.onecard, entryTime: entryTime });
+		windowManager.getMainWindow().webContents.send("guest-entry", { name: data.name, onecard: data.onecard, entryTime: entryTime });
 	} catch (error) {
 		event.reply("manual-entry-error", error.message);
 	}
@@ -426,7 +474,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("activate", () => {
-	if (mainWindow === null) {
-		createMainWindow();
+	if (!windowManager.getMainWindow()) {
+		windowManager.createMainWindow();
 	}
 });
