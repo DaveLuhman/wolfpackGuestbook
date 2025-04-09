@@ -91,7 +91,7 @@ button:hover {
   position: sticky; /* keeps the header in view */
   top: 0;
   background-color: #B0B0B0; /* heather gray background */
-  padding: 10px;
+  padding: 4px;
   z-index: 1000; /* ensures it stays above other content */
   border-radius: 15px;
   border-bottom: 1px solid #ccc;
