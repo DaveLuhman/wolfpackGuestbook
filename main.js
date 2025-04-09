@@ -255,9 +255,9 @@ app.on("ready", async () => {
 			label: "File",
 			submenu: [
 				{ label: "Manual Entry", click: () => { createManualEntryWindow(); } },
-				{ 
-					label: "Toggle Sounds", 
-					click: () => { 
+				{
+					label: "Mute",
+					click: () => {
 						global.soundEnabled = !global.soundEnabled;
 						// Save the setting to config file
 						const configPath = path.join(__dirname, "wg_config.json");
