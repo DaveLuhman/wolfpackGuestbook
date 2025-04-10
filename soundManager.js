@@ -50,11 +50,10 @@ class SoundManager {
             console.error('Sound buffer not loaded');
             return;
         }
-
         const speaker = new Speaker(buffer.format);
-        buffer.data.forEach(chunk => {
+        for (const chunk of buffer.data) {
             speaker.write(chunk);
-        });
+        }
         speaker.end();
     }
 
