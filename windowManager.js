@@ -31,6 +31,19 @@ class WindowManager {
             }
         });
 
+        // Handle device selection save
+        ipcMain.on("save-device", (event, devices) => {
+            configManager.setSelectedDevice('msr', devices.msr);
+            configManager.setSelectedDevice('barcode', devices.barcode);
+        });
+
+        // Handle show HID bindings modal
+        ipcMain.on("show-hid-bindings", () => {
+            if (this.mainWindow) {
+                this.mainWindow.webContents.send("show-hid-bindings");
+            }
+        });
+
         // Handle manual entry submission
         ipcMain.on("manual-entry-submit", async (event, data) => {
             const entryTime = new Date().toLocaleString();
@@ -166,6 +179,26 @@ class WindowManager {
         });
     }
 
+    createHIDBindingsWindow() {
+        let hidBindingsWindow = new BrowserWindow({
+            width: 500,
+            height: 400,
+            parent: this.mainWindow,
+            modal: true,
+            resizable: false,
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false,
+            },
+            title: "HID Bindings"
+        });
+        hidBindingsWindow.setMenu(null);
+        hidBindingsWindow.loadFile("hidBindings.html");
+        hidBindingsWindow.on("closed", () => {
+            hidBindingsWindow = null;
+        });
+    }
+
     setupMainMenu() {
         const menuTemplate = [
             {
@@ -175,18 +208,30 @@ class WindowManager {
                         label: "Manual Entry",
                         click: () => { this.createManualEntryWindow(); }
                     },
+                    { role: "quit" }
+                ]
+            },
+            {
+                label: "Settings",
+                submenu: [
                     {
                         label: configManager.getSoundEnabled() ? "Mute" : "Unmute",
                         click: () => {
                             const currentState = configManager.getSoundEnabled();
                             configManager.setSoundEnabled(!currentState);
-                            // Update the menu label
                             this.updateSoundMenuLabel();
                         },
                         type: 'checkbox',
                         checked: !configManager.getSoundEnabled()
                     },
-                    { role: "quit" }
+                    {
+                        label: "HID Bindings",
+                        click: () => {
+                            if (this.mainWindow) {
+                                this.mainWindow.webContents.send("show-hid-bindings");
+                            }
+                        }
+                    }
                 ]
             }
         ];

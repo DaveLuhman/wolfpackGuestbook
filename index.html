@@ -12,17 +12,56 @@
   <div id="entry-data">
     <p>Swipe your card or press the button to sign the guestbook...</p>
   </div>
-  <div id="hid-selector-parent">
-    <p>Select A HID MSR from the list</p>
-    <select id="hid-selector"></select>
-    <button type="submit" id="submit-hid">Submit</button>
+
+  <!-- HID Bindings Modal -->
+  <div id="hid-bindings-modal" class="modal">
+    <div class="modal-content">
+      <h2>HID Device Bindings</h2>
+      <div class="form-group">
+        <label for="msrSelect">Magnetic Stripe Reader:</label>
+        <select id="msrSelect" class="form-control">
+          <option value="">Select a device...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="barcodeSelect">Barcode Scanner:</label>
+        <select id="barcodeSelect" class="form-control">
+          <option value="">Select a device...</option>
+        </select>
+      </div>
+      <div class="button-container">
+        <button id="submit-hid" class="btn btn-primary">Save</button>
+        <button id="cancel-hid" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
   </div>
+
   <script>
     const { ipcRenderer } = require("electron");
+    const HIDManager = require('./HIDManager');
+    const configManager = require('./configManager');
+
+    // Initialize HID manager with saved device if exists
+    const savedMSR = configManager.getSelectedDevice('msr');
+    if (savedMSR) {
+      HIDManager.setDevice(savedMSR);
+    }
+
+    // Handle HID data
+    HIDManager.on('data', (data) => {
+      ipcRenderer.send('manual-entry-submit', data);
+    });
+
+    // Handle HID errors
+    HIDManager.on('error', (error) => {
+      ipcRenderer.send('entry-error', error.message);
+    });
+
     // open viewer window on clicking logo
     document.getElementById("logo-link").addEventListener("click", () => {
       ipcRenderer.send("open-viewer-window");
     });
+
     // Handle successful entry
     ipcRenderer.on("guest-entry", (event, data) => {
       const entryData = document.getElementById("entry-data");
@@ -56,6 +95,11 @@
       }, 1000);
     });
 
+    // Handle show HID bindings modal
+    ipcRenderer.on("show-hid-bindings", () => {
+      showHIDBindings();
+    });
+
     // Handle error (e.g., misswipe)
     ipcRenderer.on("entry-error", (event, errorMessage) => {
       const entryData = document.getElementById("entry-data");
@@ -82,6 +126,101 @@
       }, 1000);
     });
 
+    // HID Bindings Modal Functions
+    function showHIDBindings() {
+      const modal = document.getElementById('hid-bindings-modal');
+      modal.style.display = 'block';
+
+      // Load saved devices if they exist
+      const savedMSR = configManager.getSelectedDevice('msr');
+      const savedBarcode = configManager.getSelectedDevice('barcode');
+
+      // Populate device lists
+      const devices = HIDManager.getDevices();
+      const msrSelect = document.getElementById('msrSelect');
+      const barcodeSelect = document.getElementById('barcodeSelect');
+
+      // Clear existing options except the first one
+      while (msrSelect.options.length > 1) msrSelect.remove(1);
+      while (barcodeSelect.options.length > 1) barcodeSelect.remove(1);
+
+      // Track if saved devices are found
+      let msrFound = false;
+      let barcodeFound = false;
+
+      devices.forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.path;
+        option.textContent = device.manufacturer ? `${device.manufacturer} - ${device.product}` : device.product;
+
+        // Check if this is the saved device
+        if (savedMSR && device.path === savedMSR) {
+          msrFound = true;
+        }
+        if (savedBarcode && device.path === savedBarcode) {
+          barcodeFound = true;
+        }
+
+        // Add to appropriate dropdown based on device type
+        if (device.product.includes('MSR') || device.product.includes('Swipe')) {
+          msrSelect.appendChild(option.cloneNode(true));
+        } else {
+          barcodeSelect.appendChild(option);
+        }
+      });
+
+      // Set selected values
+      if (msrFound) {
+        msrSelect.value = savedMSR;
+      } else if (savedMSR) {
+        // Add the saved but unavailable device as an option
+        const option = document.createElement('option');
+        option.value = savedMSR;
+        option.textContent = '[Unavailable] Previously selected device';
+        option.disabled = true;
+        msrSelect.appendChild(option);
+        msrSelect.value = savedMSR;
+      }
+
+      if (barcodeFound) {
+        barcodeSelect.value = savedBarcode;
+      } else if (savedBarcode) {
+        // Add the saved but unavailable device as an option
+        const option = document.createElement('option');
+        option.value = savedBarcode;
+        option.textContent = '[Unavailable] Previously selected device';
+        option.disabled = true;
+        barcodeSelect.appendChild(option);
+        barcodeSelect.value = savedBarcode;
+      }
+    }
+
+    function hideHIDBindings() {
+      document.getElementById('hid-bindings-modal').style.display = 'none';
+    }
+
+    // Event Listeners for HID Bindings
+    document.getElementById('submit-hid').addEventListener('click', () => {
+      const msrDevice = document.getElementById('msrSelect').value;
+      const barcodeDevice = document.getElementById('barcodeSelect').value;
+
+      ipcRenderer.send('save-device', {
+        msr: msrDevice,
+        barcode: barcodeDevice
+      });
+      hideHIDBindings();
+    });
+
+    document.getElementById('cancel-hid').addEventListener('click', hideHIDBindings);
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (event) => {
+      const modal = document.getElementById('hid-bindings-modal');
+      if (event.target === modal) {
+        hideHIDBindings();
+      }
+    });
+
     function resetScreen() {
       const entryData = document.getElementById("entry-data");
       const body = document.body;
@@ -90,19 +229,6 @@
       body.style.backgroundColor = "#00447C";
       entryData.innerHTML = `<p>Swipe your card to sign the guestbook...</p>`;
     }
-    ipcRenderer.on('select-hid', (event, data) => {
-      console.log('Received select-hid event with data:', data);
-      const hidSelectorOptions = data.map(option => `<option value="${option.path}">${option.manufacturer} ${option.product}</option>`);
-      document.getElementById("hid-selector").innerHTML = hidSelectorOptions.join('\n');
-      document.getElementById("hid-selector-parent").style.display = "block";
-    });
-
-    document.getElementById("submit-hid").addEventListener("click", () => {
-      const hidSelection = document.getElementById('hid-selector').value;
-      console.log('Submitting HID selection:', hidSelection);
-      ipcRenderer.send('hid-selection', hidSelection);
-      document.getElementById("hid-selector-parent").style.display = "none";
-    });
   </script>
 </body>
 

@@ -14,7 +14,11 @@ class ConfigManager {
             sound: {
                 enabled: true
             },
-            password: null
+            password: null,
+            devices: {
+                msr: null,
+                barcode: null
+            }
         };
 
         // Merge default config with existing config, preserving any existing values
@@ -24,6 +28,10 @@ class ConfigManager {
             sound: {
                 ...defaultConfig.sound,
                 ...(this.config.sound || {})
+            },
+            devices: {
+                ...defaultConfig.devices,
+                ...(this.config.devices || {})
             }
         };
 
@@ -157,6 +165,16 @@ class ConfigManager {
                 }
             });
         });
+    }
+
+    // Device configuration
+    getSelectedDevice(deviceType) {
+        return this.config.devices[deviceType];
+    }
+
+    setSelectedDevice(deviceType, devicePath) {
+        this.config.devices[deviceType] = devicePath;
+        this.saveConfig();
     }
 }
 
