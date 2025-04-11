@@ -8,33 +8,36 @@ const os = require("node:os");
 function getSharedDbPath() {
 	// Determine platform-specific shared location
 	switch (process.platform) {
-		case 'win32':
+		case "win32":
 			// On Windows, use the Public directory which is accessible to all users
-			return path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'wolfpack-guestbook');
-		case 'darwin':
+			return path.join(
+				process.env.PUBLIC || "C:\\Users\\Public",
+				"wolfpack-guestbook",
+			);
+		case "darwin":
 			// On macOS, use /Library/Application Support
-			return '/Library/Application Support/wolfpack-guestbook';
+			return "/Library/Application Support/wolfpack-guestbook";
 		default:
 			// On Linux and others, use /var/lib
-			return '/var/lib/wolfpack-guestbook';
+			return "/var/lib/wolfpack-guestbook";
 	}
 }
 
 function checkForDatabaseFile() {
 	const directoryPath = getSharedDbPath();
-	const filePath = path.join(directoryPath, 'guestbook.db');
+	const filePath = path.join(directoryPath, "guestbook.db");
 
 	try {
 		// Create directory with appropriate permissions
 		if (!fs.existsSync(directoryPath)) {
 			fs.mkdirSync(directoryPath, { recursive: true, mode: 0o777 });
-			console.log('Created shared directory:', directoryPath);
+			console.log("Created shared directory:", directoryPath);
 		}
 
 		// Create file if it doesn't exist
 		if (!fs.existsSync(filePath)) {
-			fs.writeFileSync(filePath, '', { mode: 0o666 });
-			console.log('Created database file:', filePath);
+			fs.writeFileSync(filePath, "", { mode: 0o666 });
+			console.log("Created database file:", filePath);
 		}
 
 		// Ensure proper permissions on existing files
@@ -43,8 +46,10 @@ function checkForDatabaseFile() {
 
 		return filePath;
 	} catch (err) {
-		console.error('Error setting up database file:', err);
-		throw new Error(`Failed to setup database in shared location: ${err.message}`);
+		console.error("Error setting up database file:", err);
+		throw new Error(
+			`Failed to setup database in shared location: ${err.message}`,
+		);
 	}
 }
 

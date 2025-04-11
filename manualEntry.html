@@ -1,18 +1,13 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>Manual Entry</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h2 { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; }
-        input { width: 95%; padding: 8px; margin-bottom: 10px; }
-        button { padding: 8px 12px; }
-        .error { color: red; }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+
+<body class="manual-entry-form">
     <h2>Manual Entry</h2>
     <form id="manual-entry-form">
         <div>
@@ -38,26 +33,21 @@
             const onecard = document.getElementById('onecard').value.trim();
 
             if (!name || !onecard) {
-                errorMessage.textContent = 'Both Name and Onecard are required.';
+                errorMessage.textContent = 'Please fill in all fields';
                 return;
             }
 
-            if (!/^\d{7}$/.test(onecard)) {
-                errorMessage.textContent = 'Onecard must be exactly 7 digits.';
-                return;
-            }
-
-            // Send the manual entry data via IPC
             ipcRenderer.send('manual-entry-submit', { name, onecard });
+        });
+
+        ipcRenderer.on('manual-entry-error', (event, error) => {
+            errorMessage.textContent = error;
         });
 
         ipcRenderer.on('manual-entry-success', () => {
             window.close();
         });
-
-        ipcRenderer.on('manual-entry-error', (event, error) => {
-            errorMessage.textContent = 'Error: ' + error;
-        });
     </script>
 </body>
+
 </html>

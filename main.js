@@ -8,7 +8,7 @@ const {
 	Menu,
 } = require("electron");
 const path = require("node:path");
-const fs = require('node:fs');
+const fs = require("node:fs");
 const connectDB = require("./db.js");
 const GuestEntry = require("./GuestEntry.js");
 const {
@@ -17,9 +17,9 @@ const {
 	closeSwiper,
 } = require("./magtekSwiper.js");
 const { createObjectCsvWriter } = require("csv-writer");
-const configManager = require('./configManager');
-const windowManager = require('./windowManager');
-const soundManager = require('./soundManager');
+const configManager = require("./configManager");
+const windowManager = require("./windowManager");
+const soundManager = require("./soundManager");
 
 const appIcon = nativeImage.createFromPath(
 	path.join(__dirname, "img", "favicon-32.png"),
@@ -28,7 +28,9 @@ const appIcon = nativeImage.createFromPath(
 const onSwipe = async (error, onecardData) => {
 	if (error) {
 		console.error("Error during swipe:", error.message);
-		windowManager.getMainWindow().webContents.send("swipe-error", `Swipe error: ${error.message}`);
+		windowManager
+			.getMainWindow()
+			.webContents.send("swipe-error", `Swipe error: ${error.message}`);
 		soundManager.playError();
 		return;
 	}
@@ -44,10 +46,9 @@ const onSwipe = async (error, onecardData) => {
 		soundManager.playSuccess();
 	} catch (dbError) {
 		console.error("Error handling entry:", dbError.message);
-		windowManager.getMainWindow().webContents.send(
-			"entry-error",
-			`Database error: ${dbError.message}`,
-		);
+		windowManager
+			.getMainWindow()
+			.webContents.send("entry-error", `Database error: ${dbError.message}`);
 		soundManager.playError();
 	}
 };
@@ -101,10 +102,9 @@ const guestButtonPressCallback = async () => {
 		soundManager.playSuccess();
 	} catch (error) {
 		console.error("Error handling entry:", error.message);
-		windowManager.getMainWindow().webContents.send(
-			"entry-error",
-			`Database error: ${error.message}`,
-		);
+		windowManager
+			.getMainWindow()
+			.webContents.send("entry-error", `Database error: ${error.message}`);
 		soundManager.playError();
 	}
 };

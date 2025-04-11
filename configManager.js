@@ -1,123 +1,126 @@
-const fs = require('node:fs');
-const path = require('node:path');
-const { BrowserWindow, ipcMain } = require('electron');
+const fs = require("node:fs");
+const path = require("node:path");
+const { BrowserWindow, ipcMain } = require("electron");
 
 class ConfigManager {
-    constructor() {
-        this.configPath = path.join(__dirname, "wg_config.json");
-        this.config = this.loadConfig();
-        this.initializeConfig();
-    }
+	constructor() {
+		this.configPath = path.join(__dirname, "wg_config.json");
+		this.config = this.loadConfig();
+		this.initializeConfig();
+	}
 
-    initializeConfig() {
-        const defaultConfig = {
-            sound: {
-                enabled: true
-            },
-            password: null,
-            devices: {
-                msr: null,
-                barcode: null
-            }
-        };
+	initializeConfig() {
+		const defaultConfig = {
+			sound: {
+				enabled: true,
+			},
+			password: null,
+			devices: {
+				msr: null,
+				barcode: null,
+			},
+		};
 
-        // Merge default config with existing config, preserving any existing values
-        this.config = {
-            ...defaultConfig,
-            ...this.config,
-            sound: {
-                ...defaultConfig.sound,
-                ...(this.config.sound || {})
-            },
-            devices: {
-                ...defaultConfig.devices,
-                ...(this.config.devices || {})
-            }
-        };
+		// Merge default config with existing config, preserving any existing values
+		this.config = {
+			...defaultConfig,
+			...this.config,
+			sound: {
+				...defaultConfig.sound,
+				...(this.config.sound || {}),
+			},
+			devices: {
+				...defaultConfig.devices,
+				...(this.config.devices || {}),
+			},
+		};
 
-        // Save the merged config
-        this.saveConfig();
-    }
+		// Save the merged config
+		this.saveConfig();
+	}
 
-    loadConfig() {
-        let config = {};
-        if (fs.existsSync(this.configPath)) {
-            try {
-                const rawData = fs.readFileSync(this.configPath);
-                config = JSON.parse(rawData);
-            } catch (err) {
-                console.error("Error reading wg_config.json:", err.message);
-            }
-        }
-        return config;
-    }
+	loadConfig() {
+		let config = {};
+		if (fs.existsSync(this.configPath)) {
+			try {
+				const rawData = fs.readFileSync(this.configPath);
+				config = JSON.parse(rawData);
+			} catch (err) {
+				console.error("Error reading wg_config.json:", err.message);
+			}
+		}
+		return config;
+	}
 
-    saveConfig() {
-        try {
-            fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2));
-        } catch (err) {
-            console.error("Error writing wg_config.json:", err.message);
-        }
-    }
+	saveConfig() {
+		try {
+			fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2));
+		} catch (err) {
+			console.error("Error writing wg_config.json:", err.message);
+		}
+	}
 
-    get(key) {
-        return this.config[key];
-    }
+	get(key) {
+		return this.config[key];
+	}
 
-    set(key, value) {
-        this.config[key] = value;
-        this.saveConfig();
-    }
+	set(key, value) {
+		this.config[key] = value;
+		this.saveConfig();
+	}
 
-    // Sound configuration
-    getSoundEnabled() {
-        return this.config.sound.enabled;
-    }
+	// Sound configuration
+	getSoundEnabled() {
+		return this.config.sound.enabled;
+	}
 
-    setSoundEnabled(enabled) {
-        this.config.sound.enabled = enabled;
-        this.saveConfig();
-    }
+	setSoundEnabled(enabled) {
+		this.config.sound.enabled = enabled;
+		this.saveConfig();
+	}
 
-    // Password configuration
-    getPassword() {
-        return this.config.password || "";
-    }
+	// Password configuration
+	getPassword() {
+		return this.config.password || "";
+	}
 
-    setPassword(password) {
-        this.config.password = password;
-        this.saveConfig();
-    }
+	setPassword(password) {
+		this.config.password = password;
+		this.saveConfig();
+	}
 
-    async checkPasswordConfig() {
-        if (!this.config.password && this.config.password !== "") {
-            const password = await this.promptForPassword();
-            this.setPassword(password || "");
-        }
-    }
+	async checkPasswordConfig() {
+		if (!this.config.password && this.config.password !== "") {
+			const password = await this.promptForPassword();
+			this.setPassword(password || "");
+		}
+	}
 
-    promptForPassword() {
-        return new Promise((resolve, _reject) => {
-            const channelId = `password-prompt-response-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-            const promptWindow = new BrowserWindow({
-                width: 300,
-                height: 250,
-                title: "Configure Viewer Password",
-                parent: require('./windowManager').getMainWindow(),
-                modal: true,
-                show: false,
-                webPreferences: {
-                    preload: path.join(__dirname, 'promptPreload.js'),
-                    nodeIntegration: false,
-                    contextIsolation: true,
-                    webSecurity: true
-                }
-            });
+	promptForPassword() {
+		return new Promise((resolve, _reject) => {
+			const channelId = `password-prompt-response-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+			const promptWindow = new BrowserWindow({
+				width: 300,
+				height: 250,
+				title: "Configure Viewer Password",
+				parent: require("./windowManager").getMainWindow(),
+				modal: true,
+				show: false,
+				webPreferences: {
+					preload: path.join(__dirname, "promptPreload.js"),
+					nodeIntegration: false,
+					contextIsolation: true,
+					webSecurity: true,
+				},
+			});
 
-            // Read the CSS file and inline its contents
-            const styleContent = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf-8');
+			// Read the CSS file and inline its contents
+			const styleContent = fs.readFileSync(
+				path.join(__dirname, "styles.css"),
+				"utf-8",
+			);
 
-            const htmlContent = `<!DOCTYPE html>
+			const htmlContent = `<!DOCTYPE html>
 <html>
     <head>
         <meta name="response-channel" content="${channelId}">
@@ -154,28 +157,30 @@ class ConfigManager {
     </body>
 </html>`;
 
-            promptWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
-            promptWindow.once('ready-to-show', () => {
-                promptWindow.show();
-            });
-            ipcMain.once(channelId, (event, value) => {
-                resolve(value);
-                if (!promptWindow.isDestroyed()) {
-                    promptWindow.close();
-                }
-            });
-        });
-    }
+			promptWindow.loadURL(
+				`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`,
+			);
+			promptWindow.once("ready-to-show", () => {
+				promptWindow.show();
+			});
+			ipcMain.once(channelId, (event, value) => {
+				resolve(value);
+				if (!promptWindow.isDestroyed()) {
+					promptWindow.close();
+				}
+			});
+		});
+	}
 
-    // Device configuration
-    getSelectedDevice(deviceType) {
-        return this.config.devices[deviceType];
-    }
+	// Device configuration
+	getSelectedDevice(deviceType) {
+		return this.config.devices[deviceType];
+	}
 
-    setSelectedDevice(deviceType, devicePath) {
-        this.config.devices[deviceType] = devicePath;
-        this.saveConfig();
-    }
+	setSelectedDevice(deviceType, devicePath) {
+		this.config.devices[deviceType] = devicePath;
+		this.saveConfig();
+	}
 }
 
 module.exports = new ConfigManager();

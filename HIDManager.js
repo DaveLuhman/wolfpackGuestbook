@@ -1,5 +1,9 @@
-const HID = require('node-hid');
-const { getMagtekSwiper, startListeningToSwiper, closeSwiper } = require('./magtekSwiper');
+const HID = require("node-hid");
+const {
+	getMagtekSwiper,
+	startListeningToSwiper,
+	closeSwiper,
+} = require("./magtekSwiper");
 
 class HIDManager {
     constructor() {
