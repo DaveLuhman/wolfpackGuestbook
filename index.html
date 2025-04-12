@@ -12,6 +12,10 @@
   <div id="entry-data">
     <p>Swipe your card or press the button to sign the guestbook...</p>
   </div>
+  <div id="loading-indicator" class="loading" style="display: none;">
+    <div class="spinner"></div>
+    <p>Loading...</p>
+  </div>
 
   <!-- HID Bindings Modal -->
   <div id="hid-bindings-modal" class="modal">
@@ -41,36 +45,82 @@
     const HIDManager = require('./HIDManager');
     const configManager = require('./configManager');
 
-    // Initialize HID manager with saved device if exists
-    const savedMSR = configManager.getSelectedDevice('msr');
-    if (savedMSR) {
-      HIDManager.setDevice(savedMSR);
+    // Store event listeners for cleanup
+    const eventListeners = new Map();
+
+    function showLoading() {
+      document.getElementById('loading-indicator').style.display = 'block';
     }
 
-    // Handle HID data
-    HIDManager.on('data', (data) => {
-      ipcRenderer.send('manual-entry-submit', data);
-    });
+    function hideLoading() {
+      document.getElementById('loading-indicator').style.display = 'none';
+    }
 
-    // Handle HID errors
-    HIDManager.on('error', (error) => {
-      ipcRenderer.send('entry-error', error.message);
-    });
-
-    // open viewer window on clicking logo
-    document.getElementById("logo-link").addEventListener("click", () => {
-      ipcRenderer.send("open-viewer-window");
-    });
-
-    // Handle successful entry
-    ipcRenderer.on("guest-entry", (event, data) => {
+    function showError(message) {
       const entryData = document.getElementById("entry-data");
       const body = document.body;
 
-      // Flash screen green
-      body.style.backgroundColor = "green";
+      body.style.backgroundColor = "red";
+      entryData.innerHTML = `<p><strong>Error:</strong> ${message}</p>
+                           <p id="countdown">Clearing in 5 seconds...</p>`;
 
-      // Display entry data
+      let countdown = 5;
+      const countdownElement = document.getElementById("countdown");
+
+      const interval = setInterval(() => {
+        countdown--;
+        countdownElement.textContent = `Clearing in ${countdown} seconds...`;
+        if (countdown <= 0) {
+          clearInterval(interval);
+          resetScreen();
+        }
+      }, 1000);
+    }
+
+    function resetScreen() {
+      const entryData = document.getElementById("entry-data");
+      const body = document.body;
+
+      body.style.backgroundColor = "";
+      entryData.innerHTML = "<p>Swipe your card or press the button to sign the guestbook...</p>";
+    }
+
+    // Initialize HID manager with saved device if exists
+    const savedMSR = configManager.getSelectedDevice('msr');
+    if (savedMSR) {
+      showLoading();
+      HIDManager.setDevice(savedMSR, 'msr')
+        .catch(error => {
+          console.error('Error initializing saved MSR device:', error);
+          showError('Failed to initialize saved device');
+        })
+        .finally(() => hideLoading());
+    }
+
+    // Handle HID data
+    const handleData = (data) => {
+      showLoading();
+      ipcRenderer.send('manual-entry-submit', data);
+    };
+
+    // Handle HID errors
+    const handleError = (error) => {
+      showError(error.message);
+    };
+
+    HIDManager.on('data', handleData);
+    HIDManager.on('error', handleError);
+
+    // Store event listeners
+    eventListeners.set('data', handleData);
+    eventListeners.set('error', handleError);
+
+    // Handle successful entry
+    const handleGuestEntry = (event, data) => {
+      const entryData = document.getElementById("entry-data");
+      const body = document.body;
+
+      body.style.backgroundColor = "green";
       entryData.innerHTML = `
         <p><strong>Name:</strong> ${data.name}</p>
         <div class="entry-row">
@@ -81,7 +131,6 @@
         <p id="countdown">Clearing in 5 seconds...</p>
       `;
 
-      // Countdown timer
       let countdown = 5;
       const countdownElement = document.getElementById("countdown");
 
@@ -93,105 +142,97 @@
           resetScreen();
         }
       }, 1000);
-    });
+    };
+
+    ipcRenderer.on("guest-entry", handleGuestEntry);
+    eventListeners.set("guest-entry", handleGuestEntry);
 
     // Handle show HID bindings modal
-    ipcRenderer.on("show-hid-bindings", () => {
+    const handleShowHIDBindings = () => {
       showHIDBindings();
-    });
+    };
+
+    ipcRenderer.on("show-hid-bindings", handleShowHIDBindings);
+    eventListeners.set("show-hid-bindings", handleShowHIDBindings);
 
     // Handle error (e.g., misswipe)
-    ipcRenderer.on("entry-error", (event, errorMessage) => {
-      const entryData = document.getElementById("entry-data");
-      const body = document.body;
+    const handleEntryError = (event, errorMessage) => {
+      showError(errorMessage);
+    };
 
-      // Flash screen red
-      body.style.backgroundColor = "red";
-
-      // Display error message
-      entryData.innerHTML = `<p><strong>Error:</strong> ${errorMessage}</p>
-                             <p id="countdown">Clearing in 5 seconds...</p>`;
-
-      // Countdown timer for error message
-      let countdown = 5;
-      const countdownElement = document.getElementById("countdown");
-
-      const interval = setInterval(() => {
-        countdown--;
-        countdownElement.textContent = `Clearing in ${countdown} seconds...`;
-        if (countdown <= 0) {
-          clearInterval(interval);
-          resetScreen();
-        }
-      }, 1000);
-    });
+    ipcRenderer.on("entry-error", handleEntryError);
+    eventListeners.set("entry-error", handleEntryError);
 
     // HID Bindings Modal Functions
     function showHIDBindings() {
       const modal = document.getElementById('hid-bindings-modal');
       modal.style.display = 'block';
 
-      // Load saved devices if they exist
-      const savedMSR = configManager.getSelectedDevice('msr');
-      const savedBarcode = configManager.getSelectedDevice('barcode');
+      showLoading();
+      try {
+        // Load saved devices if they exist
+        const savedMSR = configManager.getSelectedDevice('msr');
+        const savedBarcode = configManager.getSelectedDevice('barcode');
 
-      // Populate device lists
-      const devices = HIDManager.getDevices();
-      const msrSelect = document.getElementById('msrSelect');
-      const barcodeSelect = document.getElementById('barcodeSelect');
+        // Populate device lists
+        const devices = HIDManager.getDevices();
+        const msrSelect = document.getElementById('msrSelect');
+        const barcodeSelect = document.getElementById('barcodeSelect');
 
-      // Clear existing options except the first one
-      while (msrSelect.options.length > 1) msrSelect.remove(1);
-      while (barcodeSelect.options.length > 1) barcodeSelect.remove(1);
+        // Clear existing options except the first one
+        while (msrSelect.options.length > 1) msrSelect.remove(1);
+        while (barcodeSelect.options.length > 1) barcodeSelect.remove(1);
 
-      // Track if saved devices are found
-      let msrFound = false;
-      let barcodeFound = false;
+        // Track if saved devices are found
+        let msrFound = false;
+        let barcodeFound = false;
 
-      devices.forEach(device => {
-        const option = document.createElement('option');
-        option.value = device.path;
-        option.textContent = device.manufacturer ? `${device.manufacturer} - ${device.product}` : device.product;
+        devices.forEach(device => {
+          const option = document.createElement('option');
+          option.value = device.path;
+          option.textContent = device.manufacturer ? `${device.manufacturer} - ${device.product}` : device.product;
 
-        // Check if this is the saved device
-        if (savedMSR && device.path === savedMSR) {
-          msrFound = true;
+          if (savedMSR && device.path === savedMSR) {
+            msrFound = true;
+          }
+          if (savedBarcode && device.path === savedBarcode) {
+            barcodeFound = true;
+          }
+
+          if (device.product.includes('MSR') || device.product.includes('Swipe')) {
+            msrSelect.appendChild(option.cloneNode(true));
+          } else {
+            barcodeSelect.appendChild(option);
+          }
+        });
+
+        // Set selected values
+        if (msrFound) {
+          msrSelect.value = savedMSR;
+        } else if (savedMSR) {
+          const option = document.createElement('option');
+          option.value = savedMSR;
+          option.textContent = '[Unavailable] Previously selected device';
+          option.disabled = true;
+          msrSelect.appendChild(option);
+          msrSelect.value = savedMSR;
         }
-        if (savedBarcode && device.path === savedBarcode) {
-          barcodeFound = true;
-        }
 
-        // Add to appropriate dropdown based on device type
-        if (device.product.includes('MSR') || device.product.includes('Swipe')) {
-          msrSelect.appendChild(option.cloneNode(true));
-        } else {
+        if (barcodeFound) {
+          barcodeSelect.value = savedBarcode;
+        } else if (savedBarcode) {
+          const option = document.createElement('option');
+          option.value = savedBarcode;
+          option.textContent = '[Unavailable] Previously selected device';
+          option.disabled = true;
           barcodeSelect.appendChild(option);
+          barcodeSelect.value = savedBarcode;
         }
-      });
-
-      // Set selected values
-      if (msrFound) {
-        msrSelect.value = savedMSR;
-      } else if (savedMSR) {
-        // Add the saved but unavailable device as an option
-        const option = document.createElement('option');
-        option.value = savedMSR;
-        option.textContent = '[Unavailable] Previously selected device';
-        option.disabled = true;
-        msrSelect.appendChild(option);
-        msrSelect.value = savedMSR;
-      }
-
-      if (barcodeFound) {
-        barcodeSelect.value = savedBarcode;
-      } else if (savedBarcode) {
-        // Add the saved but unavailable device as an option
-        const option = document.createElement('option');
-        option.value = savedBarcode;
-        option.textContent = '[Unavailable] Previously selected device';
-        option.disabled = true;
-        barcodeSelect.appendChild(option);
-        barcodeSelect.value = savedBarcode;
+      } catch (error) {
+        console.error('Error loading HID devices:', error);
+        showError('Failed to load HID devices');
+      } finally {
+        hideLoading();
       }
     }
 
@@ -200,35 +241,53 @@
     }
 
     // Event Listeners for HID Bindings
-    document.getElementById('submit-hid').addEventListener('click', () => {
+    const handleSubmitHID = () => {
       const msrDevice = document.getElementById('msrSelect').value;
       const barcodeDevice = document.getElementById('barcodeSelect').value;
 
+      showLoading();
       ipcRenderer.send('save-device', {
         msr: msrDevice,
         barcode: barcodeDevice
       });
       hideHIDBindings();
-    });
+    };
+
+    document.getElementById('submit-hid').addEventListener('click', handleSubmitHID);
+    eventListeners.set('submit-hid', handleSubmitHID);
 
     document.getElementById('cancel-hid').addEventListener('click', hideHIDBindings);
+    eventListeners.set('cancel-hid', hideHIDBindings);
 
     // Close modal when clicking outside
-    window.addEventListener('click', (event) => {
+    const handleModalClick = (event) => {
       const modal = document.getElementById('hid-bindings-modal');
       if (event.target === modal) {
         hideHIDBindings();
       }
-    });
+    };
 
-    function resetScreen() {
-      const entryData = document.getElementById("entry-data");
-      const body = document.body;
+    window.addEventListener('click', handleModalClick);
+    eventListeners.set('modal-click', handleModalClick);
 
-      // Reset background color and entry data
-      body.style.backgroundColor = "#00447C";
-      entryData.innerHTML = `<p>Swipe your card to sign the guestbook...</p>`;
+    // Cleanup function
+    function cleanup() {
+      // Remove all event listeners
+      for (const [event, listener] of eventListeners) {
+        if (event.startsWith('ipc-')) {
+          ipcRenderer.removeListener(event.slice(4), listener);
+        } else {
+          const element = document.getElementById(event);
+          if (element) {
+            element.removeEventListener('click', listener);
+          }
+        }
+      }
+      eventListeners.clear();
     }
+
+    // Cleanup on page unload
+    window.addEventListener('unload', cleanup);
   </script>
 </body>
 

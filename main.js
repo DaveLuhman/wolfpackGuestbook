@@ -4,18 +4,13 @@ const {
 	ipcMain,
 	nativeImage,
 	dialog,
-	globalShortcut,
 	Menu,
 } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const connectDB = require("./db.js");
 const GuestEntry = require("./GuestEntry.js");
-const {
-	getMagtekSwiper,
-	startListeningToSwiper,
-	closeSwiper,
-} = require("./magtekSwiper.js");
+const HIDManager = require("./HIDManager");
 const { createObjectCsvWriter } = require("csv-writer");
 const configManager = require("./configManager");
 const windowManager = require("./windowManager");
@@ -25,17 +20,31 @@ const appIcon = nativeImage.createFromPath(
 	path.join(__dirname, "img", "favicon-32.png"),
 );
 
-const onSwipe = async (error, onecardData) => {
+// Store IPC listeners for cleanup
+const ipcListeners = new Map();
+
+const onDeviceData = async (error, data) => {
 	if (error) {
-		console.error("Error during swipe:", error.message);
+		console.error("Error during device read:", error.message);
 		windowManager
 			.getMainWindow()
-			.webContents.send("swipe-error", `Swipe error: ${error.message}`);
+			.webContents.send("device-error", `Device error: ${error.message}`);
 		soundManager.playError();
 		return;
 	}
 
-	const { onecard, name } = onecardData;
+	// Handle different data formats based on device type
+	let onecard;
+	let name;
+	if (typeof data === 'string') {
+		// Barcode scanner data (just the ID)
+		onecard = data;
+		name = null; // No name from barcode
+	} else {
+		// MSR data (object with onecard and name)
+		onecard = data.onecard;
+		name = data.name;
+	}
 
 	try {
 		await GuestEntry.create(onecard, name);
@@ -53,84 +62,119 @@ const onSwipe = async (error, onecardData) => {
 	}
 };
 
-async function initializeSwiper() {
-	console.log("Looking for Mag-Tek Swiper or other HID devices...");
-	let HIDPath = await getMagtekSwiper();
-	if (Array.isArray(HIDPath)) {
-		console.log(
-			"Multiple HID devices detected, sending select-hid event to renderer.",
-		);
-		windowManager.getMainWindow().webContents.send("select-hid", HIDPath);
-		ipcMain.once("hid-selection", async (event, selectedPath) => {
-			console.log("HID device selected:", selectedPath);
-			HIDPath = selectedPath;
-			try {
-				windowManager.getMainWindow().setSize(400, 500);
-				await startListeningToSwiper(HIDPath, onSwipe);
-			} catch (error) {
-				console.error("Error starting swiper after selection:", error.message);
-			}
-		});
-	} else {
-		try {
-			console.log("MagTek Swiper detected, starting swiper...");
-			await startListeningToSwiper(HIDPath, onSwipe);
-		} catch (error) {
-			console.error("Error starting swiper:", error.message);
+async function initializeDevices() {
+	try {
+		console.log("Looking for HID devices...");
+		const devices = HIDManager.getDevices();
+
+		if (devices.length === 0) {
+			console.log("No HID devices detected.");
+			return;
 		}
+
+		// Set up event listeners
+		HIDManager.on('data', onDeviceData);
+		HIDManager.on('error', (error) => {
+			console.error("Device error:", error.message);
+			windowManager.getMainWindow().webContents.send("device-error", error.message);
+		});
+
+		// Check for saved devices first
+		const savedMSR = configManager.getSelectedDevice('msr');
+		const savedBarcode = configManager.getSelectedDevice('barcode');
+
+		// Try to use saved devices if they exist and are available
+		if (savedMSR || savedBarcode) {
+			const savedDevices = devices.filter(device =>
+				device.path === savedMSR || device.path === savedBarcode
+			);
+
+			if (savedDevices.length > 0) {
+				console.log("Using saved device configuration...");
+				for (const device of savedDevices) {
+					const type = device.path === savedMSR ? 'msr' : 'barcode';
+					try {
+						await HIDManager.setDevice(device.path, type);
+						console.log(`Successfully initialized saved ${type} device`);
+					} catch (error) {
+						console.error(`Error initializing saved ${type} device:`, error.message);
+					}
+				}
+				return;
+			}
+		}
+
+		// If no saved devices or they're not available, proceed with device selection
+		if (devices.length > 1) {
+			console.log("Multiple HID devices detected, sending select-hid event to renderer.");
+			windowManager.getMainWindow().webContents.send("select-hid", devices);
+
+			// Store the listener for cleanup
+			const hidSelectionListener = async (event, { path, type }) => {
+				console.log(`HID device selected: ${path} (${type})`);
+				try {
+					windowManager.getMainWindow().setSize(400, 500);
+					await HIDManager.setDevice(path, type);
+					// Save the selected device
+					configManager.setSelectedDevice(type, path);
+				} catch (error) {
+					console.error("Error starting device after selection:", error.message);
+				}
+			};
+
+			ipcMain.once("hid-selection", hidSelectionListener);
+			ipcListeners.set("hid-selection", hidSelectionListener);
+		} else {
+			// Single device - determine type and use it
+			const device = devices[0];
+			const type = device.manufacturer === 'Symbol' ? 'barcode' : 'msr';
+			try {
+				console.log(`${type === 'msr' ? 'MagTek Swiper' : 'Symbol Scanner'} detected, starting device...`);
+				await HIDManager.setDevice(device.path, type);
+				// Save the automatically selected device
+				configManager.setSelectedDevice(type, device.path);
+			} catch (error) {
+				console.error("Error starting device:", error.message);
+			}
+		}
+	} catch (error) {
+		console.error("Error initializing devices:", error.message);
 	}
 }
 
-let debounceTimeout;
-const DEBOUNCE_TIME = 1500; // 1500ms or 1.5 seconds
-const guestButtonPressCallback = async () => {
-	if (debounceTimeout) {
-		console.log("F24 press ignored due to active timeout.");
-		return; // Ignore the press if debounce is active
+function cleanup() {
+	// Remove all IPC listeners
+	for (const [event, listener] of ipcListeners) {
+		ipcMain.removeListener(event, listener);
 	}
+	ipcListeners.clear();
 
-	debounceTimeout = setTimeout(() => {
-		debounceTimeout = null; // Reset the timeout after the period
-	}, DEBOUNCE_TIME);
-	try {
-		await GuestEntry.createAnonymousEntry();
-		windowManager.getMainWindow().webContents.send("guest-entry", {
-			name: "Guest Visitor",
-			onecard: null,
-			entryTime: new Date().toLocaleDateString(),
-		});
-		soundManager.playSuccess();
-	} catch (error) {
-		console.error("Error handling entry:", error.message);
-		windowManager
-			.getMainWindow()
-			.webContents.send("entry-error", `Database error: ${error.message}`);
-		soundManager.playError();
-	}
-};
+	// Close HID manager
+	HIDManager.close().catch(error => {
+		console.error("Error closing HID manager:", error);
+	});
+}
 
 app.on("ready", async () => {
-	windowManager.createMainWindow();
-
 	try {
+		windowManager.createMainWindow();
+
 		await connectDB;
 		console.log("Database connected successfully.");
+
+		await configManager.checkPasswordConfig();
+
+		console.log("Looking for HID devices...");
+		await initializeDevices();
 	} catch (err) {
-		console.error("Failed to connect to the database:", err.message);
+		console.error("Failed to initialize application:", err.message);
 		app.quit();
 	}
-
-	await configManager.checkPasswordConfig();
-
-	globalShortcut.register("F24", guestButtonPressCallback);
-
-	console.log("Looking for Mag-Tek Swiper or other HID devices...");
-	initializeSwiper();
 });
 
 app.on("window-all-closed", () => {
+	cleanup();
 	if (process.platform !== "darwin") {
-		globalShortcut.unregisterAll();
 		app.quit();
 	}
 });
