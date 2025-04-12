@@ -64,14 +64,6 @@ const onDeviceData = async (error, data) => {
 
 async function initializeDevices() {
 	try {
-		console.log("Looking for HID devices...");
-		const devices = HIDManager.getDevices();
-
-		if (devices.length === 0) {
-			console.log("No HID devices detected.");
-			return;
-		}
-
 		// Set up event listeners
 		HIDManager.on('data', onDeviceData);
 		HIDManager.on('error', (error) => {
@@ -79,35 +71,12 @@ async function initializeDevices() {
 			windowManager.getMainWindow().webContents.send("device-error", error.message);
 		});
 
-		// Check for saved devices first
-		const savedMSR = configManager.getSelectedDevice('msr');
-		const savedBarcode = configManager.getSelectedDevice('barcode');
+		// Initialize devices and get any that need manual configuration
+		const devicesNeedingConfig = await HIDManager.initializeDevices();
 
-		// Try to use saved devices if they exist and are available
-		if (savedMSR || savedBarcode) {
-			const savedDevices = devices.filter(device =>
-				device.path === savedMSR || device.path === savedBarcode
-			);
-
-			if (savedDevices.length > 0) {
-				console.log("Using saved device configuration...");
-				for (const device of savedDevices) {
-					const type = device.path === savedMSR ? 'msr' : 'barcode';
-					try {
-						await HIDManager.setDevice(device.path, type);
-						console.log(`Successfully initialized saved ${type} device`);
-					} catch (error) {
-						console.error(`Error initializing saved ${type} device:`, error.message);
-					}
-				}
-				return;
-			}
-		}
-
-		// If no saved devices or they're not available, proceed with device selection
-		if (devices.length > 1) {
-			console.log("Multiple HID devices detected, sending select-hid event to renderer.");
-			windowManager.getMainWindow().webContents.send("select-hid", devices);
+		if (devicesNeedingConfig) {
+			console.log("Some devices need manual configuration, showing selection dialog...");
+			windowManager.getMainWindow().webContents.send("select-hid", devicesNeedingConfig);
 
 			// Store the listener for cleanup
 			const hidSelectionListener = async (event, { path, type }) => {
@@ -118,24 +87,13 @@ async function initializeDevices() {
 					// Save the selected device
 					configManager.setSelectedDevice(type, path);
 				} catch (error) {
-					console.error("Error starting device after selection:", error.message);
+					console.error("Error setting device:", error.message);
+					windowManager.getMainWindow().webContents.send("device-error", error.message);
 				}
 			};
 
-			ipcMain.once("hid-selection", hidSelectionListener);
-			ipcListeners.set("hid-selection", hidSelectionListener);
-		} else {
-			// Single device - determine type and use it
-			const device = devices[0];
-			const type = device.manufacturer === 'Symbol' ? 'barcode' : 'msr';
-			try {
-				console.log(`${type === 'msr' ? 'MagTek Swiper' : 'Symbol Scanner'} detected, starting device...`);
-				await HIDManager.setDevice(device.path, type);
-				// Save the automatically selected device
-				configManager.setSelectedDevice(type, device.path);
-			} catch (error) {
-				console.error("Error starting device:", error.message);
-			}
+			ipcMain.once("hid-selected", hidSelectionListener);
+			ipcListeners.set("hid-selected", hidSelectionListener);
 		}
 	} catch (error) {
 		console.error("Error initializing devices:", error.message);

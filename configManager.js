@@ -174,7 +174,20 @@ class ConfigManager {
 
 	// Device configuration
 	getSelectedDevice(deviceType) {
-		return this.config.devices[deviceType];
+		const path = this.config.devices[deviceType];
+		if (!path) return null;
+
+		// Convert all slashes to forward slashes
+		const normalizedPath = path.replace(/\\/g, '/');
+
+		// Normalize the prefix to use forward slashes
+		if (normalizedPath.startsWith('//?/')) {
+			return normalizedPath;
+		}
+		if (normalizedPath.startsWith('\\\\?\\')) {
+			return `//?/${normalizedPath.substring(4)}`;
+		}
+		return normalizedPath;
 	}
 
 	setSelectedDevice(deviceType, devicePath) {
