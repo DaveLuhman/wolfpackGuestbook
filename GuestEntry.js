@@ -3,30 +3,21 @@ const dayjs = require('dayjs');
 
 const GuestEntry = {
   async create(onecard, name) {
-    if (!name || typeof name !== 'string') {
-      throw new Error('Name is required and must be a string');
-    }
+    // Convert onecard to number if it's a string
+    const onecardNumber = typeof onecard === 'string' ? Number(onecard) : onecard;
 
-    if (!onecard || typeof onecard !== 'number') {
-      throw new Error('Onecard ID is required and must be a number');
+    if (!onecardNumber || Number.isNaN(onecardNumber)) {
+      throw new Error('Onecard ID is required and must be a valid number');
     }
 
     const entryTime = dayjs().format();
-    console.log(`${name} written to database at ${entryTime}`);
+    console.log(`${name || 'Anonymous'} written to database at ${entryTime}`);
 
     try {
       return await db.transaction(async (trx) => {
-        const existingEntry = await trx('GuestEntry')
-          .where({ onecard })
-          .first();
-
-        if (existingEntry) {
-          throw new Error('Entry already exists for this Onecard ID');
-        }
-
         return await trx('GuestEntry').insert({
-          onecard,
-          name,
+          onecard: onecardNumber,
+          name: name || null,
           entryTime
         });
       });
@@ -37,12 +28,15 @@ const GuestEntry = {
   },
 
   async findEntry(onecard) {
-    if (!onecard || typeof onecard !== 'number') {
-      throw new Error('Onecard ID is required and must be a number');
+    // Convert onecard to number if it's a string
+    const onecardNumber = typeof onecard === 'string' ? Number(onecard) : onecard;
+
+    if (!onecardNumber || Number.isNaN(onecardNumber)) {
+      throw new Error('Onecard ID is required and must be a valid number');
     }
 
     try {
-      return await db('GuestEntry').where({ onecard }).first();
+      return await db('GuestEntry').where({ onecard: onecardNumber }).first();
     } catch (error) {
       console.error("Error finding entry:", error.message);
       throw error;

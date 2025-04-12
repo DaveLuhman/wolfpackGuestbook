@@ -24,26 +24,75 @@ const appIcon = nativeImage.createFromPath(
 const ipcListeners = new Map();
 
 const onDeviceData = async (error, data) => {
-	if (error) {
-		console.error("Error during device read:", error.message);
-		windowManager
-			.getMainWindow()
-			.webContents.send("device-error", `Device error: ${error.message}`);
-		soundManager.playError();
-		return;
-	}
-
-	// Handle different data formats based on device type
 	let onecard;
 	let name;
-	if (typeof data === 'string') {
-		// Barcode scanner data (just the ID)
-		onecard = data;
-		name = null; // No name from barcode
-	} else {
-		// MSR data (object with onecard and name)
-		onecard = data.onecard;
-		name = data.name;
+
+	// Handle different data formats based on device type
+	if (error) {
+		// Only treat it as an error if it's actually an error object or has an error property
+		if (error instanceof Error || error.error || error.message) {
+			// Handle different types of errors
+			let errorMessage;
+			let errorDetails = {};
+
+			if (error instanceof Error) {
+				errorMessage = error.message;
+				errorDetails = {
+					message: error.message,
+					stack: error.stack,
+					devicePath: error.devicePath,
+					retryCount: error.retryCount,
+					originalError: error.originalError ? {
+						message: error.originalError.message,
+						stack: error.originalError.stack
+					} : null
+				};
+			} else if (typeof error === 'object') {
+				errorMessage = error.message || error.error || JSON.stringify(error);
+				errorDetails = {
+					rawError: error,
+					devicePath: error.devicePath,
+					retryCount: error.retryCount
+				};
+			} else {
+				errorMessage = String(error);
+				errorDetails = { message: errorMessage };
+			}
+
+			console.error("Error during device read:", errorMessage);
+			console.error("Error details:", JSON.stringify(errorDetails, null, 2));
+
+			windowManager
+				.getMainWindow()
+				.webContents.send("device-error", `Device error: ${errorMessage}`);
+			soundManager.playError();
+			return;
+		}
+		// If it's not an error, treat it as data
+		if (typeof error === 'string') {
+			onecard = error;
+			name = null;
+		} else if (error && typeof error === 'object') {
+			onecard = error.onecard;
+			name = error.name;
+		}
+	} else if (data) {
+		if (typeof data === 'string') {
+			onecard = data;
+			name = null;
+		} else if (typeof data === 'object') {
+			onecard = data.onecard;
+			name = data.name;
+		}
+	}
+
+	if (!onecard) {
+		console.error("Invalid data format received:", error || data);
+		windowManager
+			.getMainWindow()
+			.webContents.send("device-error", "Invalid data format received from device");
+		soundManager.playError();
+		return;
 	}
 
 	try {
