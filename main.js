@@ -126,11 +126,12 @@ const onDeviceData = async (error, data) => {
 
 async function initializeDevices() {
 	try {
-		// Set up event listeners
+		// Set up event listeners first
 		HIDManager.on('data', onDeviceData);
 		HIDManager.on('error', (error) => {
 			console.error("Device error:", error.message);
 			windowManager.getMainWindow().webContents.send("device-error", error.message);
+			soundManager.playError();
 		});
 
 		// Initialize devices and get any that need manual configuration
@@ -154,11 +155,17 @@ async function initializeDevices() {
 				}
 			};
 
+			// Remove any existing listener first
+			if (ipcListeners.has("hid-selected")) {
+				ipcMain.removeListener("hid-selected", ipcListeners.get("hid-selected"));
+			}
+
 			ipcMain.once("hid-selected", hidSelectionListener);
 			ipcListeners.set("hid-selected", hidSelectionListener);
 		}
 	} catch (error) {
 		console.error("Error initializing devices:", error.message);
+		windowManager.getMainWindow().webContents.send("device-error", error.message);
 	}
 }
 

@@ -36,6 +36,7 @@ class HIDManager {
 		this.callbacks = new Set();
 		this.isInitialized = false;
 		this.devices = new Map(); // Track multiple devices
+		this.initializationPromise = null; // Track ongoing initialization
 	}
 
 	getDevices() {
@@ -63,116 +64,129 @@ class HIDManager {
 	}
 
 	async initializeDevices() {
-		try {
-			const devices = this.getDevices();
-			if (devices.length === 0) {
-				console.log("No HID devices detected.");
-				return;
-			}
+		// If initialization is already in progress, return the existing promise
+		if (this.initializationPromise) {
+			return this.initializationPromise;
+		}
 
-			// Check for saved devices first
-			const savedMSR = configManager.getSelectedDevice("msr");
-			const savedBarcode = configManager.getSelectedDevice("barcode");
-			let msrConfigured = false;
-			let scannerConfigured = false;
+		// Create a new initialization promise
+		this.initializationPromise = (async () => {
+			try {
+				const devices = this.getDevices();
+				if (devices.length === 0) {
+					console.log("No HID devices detected.");
+					return null;
+				}
 
-			// Try to use saved devices if they exist and are available
-			if (savedMSR || savedBarcode) {
-				const savedDevices = devices.filter(
-					(device) => device.path === savedMSR || device.path === savedBarcode,
-				);
+				// Check for saved devices first
+				const savedMSR = configManager.getSelectedDevice("msr");
+				const savedBarcode = configManager.getSelectedDevice("barcode");
+				let msrConfigured = false;
+				let scannerConfigured = false;
 
-				if (savedDevices.length > 0) {
-					console.log("Using saved device configuration...");
-					for (const device of savedDevices) {
-						const type = device.path === savedMSR ? "msr" : "barcode";
+				// Try to use saved devices if they exist and are available
+				if (savedMSR || savedBarcode) {
+					const savedDevices = devices.filter(
+						(device) => device.path === savedMSR || device.path === savedBarcode,
+					);
+
+					if (savedDevices.length > 0) {
+						console.log("Using saved device configuration...");
+						for (const device of savedDevices) {
+							const type = device.path === savedMSR ? "msr" : "barcode";
+							try {
+								await this.setDevice(device.path, type);
+								console.log(`Successfully initialized saved ${type} device`);
+								if (type === "msr") msrConfigured = true;
+								if (type === "barcode") scannerConfigured = true;
+							} catch (error) {
+								console.error(
+									`Error initializing saved ${type} device:`,
+									error.message,
+								);
+							}
+						}
+					}
+				}
+
+				// If both devices are configured from saved settings, we're done
+				if (msrConfigured && scannerConfigured) {
+					console.log("All devices configured from saved settings");
+					return null;
+				}
+
+				// If no saved devices or they're not available, try auto-configuration
+				if (devices.length > 1) {
+					console.log(
+						"Multiple HID devices detected, attempting to auto-configure...",
+					);
+
+					// Only try to configure MSR if not already configured
+					if (!msrConfigured) {
 						try {
-							await this.setDevice(device.path, type);
-							console.log(`Successfully initialized saved ${type} device`);
-							if (type === "msr") msrConfigured = true;
-							if (type === "barcode") scannerConfigured = true;
-						} catch (error) {
+							const msrPath = await getMagtekSwiper();
+							if (msrPath) {
+								await this.setDevice(msrPath, "msr");
+								configManager.setSelectedDevice("msr", msrPath);
+								console.log("Successfully configured MSR device");
+								msrConfigured = true;
+							}
+						} catch (msrError) {
+							console.error("Error configuring MSR device:", msrError.message);
+						}
+					}
+
+					// Only try to configure scanner if not already configured
+					if (!scannerConfigured) {
+						try {
+							const scannerPath = await getScanner();
+							if (scannerPath) {
+								await this.setDevice(scannerPath, "barcode");
+								configManager.setSelectedDevice("barcode", scannerPath);
+								console.log("Successfully configured barcode scanner");
+								scannerConfigured = true;
+							}
+						} catch (scannerError) {
 							console.error(
-								`Error initializing saved ${type} device:`,
-								error.message,
+								"Error configuring barcode scanner:",
+								scannerError.message,
 							);
 						}
 					}
-				}
-			}
 
-			// If both devices are configured from saved settings, we're done
-			if (msrConfigured && scannerConfigured) {
-				console.log("All devices configured from saved settings");
-				return null;
-			}
-
-			// If no saved devices or they're not available, try auto-configuration
-			if (devices.length > 1) {
-				console.log(
-					"Multiple HID devices detected, attempting to auto-configure...",
-				);
-
-				// Only try to configure MSR if not already configured
-				if (!msrConfigured) {
-					try {
-						const msrPath = await getMagtekSwiper();
-						if (msrPath) {
-							await this.setDevice(msrPath, "msr");
-							configManager.setSelectedDevice("msr", msrPath);
-							console.log("Successfully configured MSR device");
-							msrConfigured = true;
-						}
-					} catch (msrError) {
-						console.error("Error configuring MSR device:", msrError.message);
+					// If either device failed to configure, return the devices for manual selection
+					if (!msrConfigured || !scannerConfigured) {
+						return devices;
 					}
-				}
-
-				// Only try to configure scanner if not already configured
-				if (!scannerConfigured) {
+				} else if (devices.length === 1) {
+					// Single device - determine type and use it
+					const device = devices[0];
+					const type = device.manufacturer === "Symbol" ? "barcode" : "msr";
 					try {
-						const scannerPath = await getScanner();
-						if (scannerPath) {
-							await this.setDevice(scannerPath, "barcode");
-							configManager.setSelectedDevice("barcode", scannerPath);
-							console.log("Successfully configured barcode scanner");
-							scannerConfigured = true;
-						}
-					} catch (scannerError) {
-						console.error(
-							"Error configuring barcode scanner:",
-							scannerError.message,
+						console.log(
+							`${type === "msr" ? "MagTek Swiper" : "Symbol Scanner"} detected, starting device...`,
 						);
+						await this.setDevice(device.path, type);
+						configManager.setSelectedDevice(type, device.path);
+						if (type === "msr") msrConfigured = true;
+						if (type === "barcode") scannerConfigured = true;
+					} catch (error) {
+						console.error("Error starting device:", error.message);
+						return devices;
 					}
 				}
 
-				// If either device failed to configure, return the devices for manual selection
-				if (!msrConfigured || !scannerConfigured) {
-					return devices;
-				}
-			} else if (devices.length === 1) {
-				// Single device - determine type and use it
-				const device = devices[0];
-				const type = device.manufacturer === "Symbol" ? "barcode" : "msr";
-				try {
-					console.log(
-						`${type === "msr" ? "MagTek Swiper" : "Symbol Scanner"} detected, starting device...`,
-					);
-					await this.setDevice(device.path, type);
-					configManager.setSelectedDevice(type, device.path);
-					if (type === "msr") msrConfigured = true;
-					if (type === "barcode") scannerConfigured = true;
-				} catch (error) {
-					console.error("Error starting device:", error.message);
-					return devices;
-				}
+				return null; // All devices configured successfully
+			} catch (error) {
+				console.error("Error initializing devices:", error.message);
+				return this.getDevices(); // Return available devices for manual selection
+			} finally {
+				// Clear the initialization promise when done
+				this.initializationPromise = null;
 			}
+		})();
 
-			return null; // All devices configured successfully
-		} catch (error) {
-			console.error("Error initializing devices:", error.message);
-			return this.getDevices(); // Return available devices for manual selection
-		}
+		return this.initializationPromise;
 	}
 
 	async setDevice(path, type) {
