@@ -70,6 +70,10 @@ const onDeviceData = async (error, data) => {
 		}
 		// If it's not an error, treat it as data
 		if (typeof error === 'string') {
+			// Skip initialization messages
+			if (error.includes("Barcode scanner initialized")) {
+				return;
+			}
 			onecard = error;
 			name = null;
 		} else if (error && typeof error === 'object') {
@@ -78,6 +82,10 @@ const onDeviceData = async (error, data) => {
 		}
 	} else if (data) {
 		if (typeof data === 'string') {
+			// Skip initialization messages
+			if (data.includes("Barcode scanner initialized")) {
+				return;
+			}
 			onecard = data;
 			name = null;
 		} else if (typeof data === 'object') {
@@ -86,7 +94,12 @@ const onDeviceData = async (error, data) => {
 		}
 	}
 
-	if (!onecard) {
+	// Convert onecard to number if it's a string
+	if (onecard) {
+		onecard = typeof onecard === 'string' ? Number(onecard) : onecard;
+	}
+
+	if (!onecard || Number.isNaN(onecard)) {
 		console.error("Invalid data format received:", error || data);
 		windowManager
 			.getMainWindow()

@@ -45,8 +45,10 @@
     const HIDManager = require('./HIDManager');
     const configManager = require('./configManager');
 
-    // Store event listeners for cleanup
-    const eventListeners = new Map();
+    // Add event listener for logo click
+    document.getElementById('logo-link').addEventListener('click', () => {
+      ipcRenderer.send('open-viewer-window');
+    });
 
     function showLoading() {
       document.getElementById('loading-indicator').style.display = 'block';
@@ -108,12 +110,9 @@
       showError(error.message);
     };
 
+    // Register event handlers with HIDManager
     HIDManager.on('data', handleData);
     HIDManager.on('error', handleError);
-
-    // Store event listeners
-    eventListeners.set('data', handleData);
-    eventListeners.set('error', handleError);
 
     // Handle successful entry
     const handleGuestEntry = (event, data) => {
@@ -145,7 +144,6 @@
     };
 
     ipcRenderer.on("guest-entry", handleGuestEntry);
-    eventListeners.set("guest-entry", handleGuestEntry);
 
     // Handle show HID bindings modal
     const handleShowHIDBindings = () => {
@@ -153,7 +151,6 @@
     };
 
     ipcRenderer.on("show-hid-bindings", handleShowHIDBindings);
-    eventListeners.set("show-hid-bindings", handleShowHIDBindings);
 
     // Handle error (e.g., misswipe)
     const handleEntryError = (event, errorMessage) => {
@@ -161,7 +158,6 @@
     };
 
     ipcRenderer.on("entry-error", handleEntryError);
-    eventListeners.set("entry-error", handleEntryError);
 
     // HID Bindings Modal Functions
     function showHIDBindings() {
@@ -254,10 +250,7 @@
     };
 
     document.getElementById('submit-hid').addEventListener('click', handleSubmitHID);
-    eventListeners.set('submit-hid', handleSubmitHID);
-
     document.getElementById('cancel-hid').addEventListener('click', hideHIDBindings);
-    eventListeners.set('cancel-hid', hideHIDBindings);
 
     // Close modal when clicking outside
     const handleModalClick = (event) => {
@@ -268,26 +261,6 @@
     };
 
     window.addEventListener('click', handleModalClick);
-    eventListeners.set('modal-click', handleModalClick);
-
-    // Cleanup function
-    function cleanup() {
-      // Remove all event listeners
-      for (const [event, listener] of eventListeners) {
-        if (event.startsWith('ipc-')) {
-          ipcRenderer.removeListener(event.slice(4), listener);
-        } else {
-          const element = document.getElementById(event);
-          if (element) {
-            element.removeEventListener('click', listener);
-          }
-        }
-      }
-      eventListeners.clear();
-    }
-
-    // Cleanup on page unload
-    window.addEventListener('unload', cleanup);
   </script>
 </body>
 

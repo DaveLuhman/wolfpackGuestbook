@@ -71,10 +71,41 @@ async function ensureTables() {
 			await connectDB.schema.createTable("GuestEntry", (table) => {
 				table.increments("id").primary();
 				table.integer("onecard");
-				table.string("name").notNullable();
+				table.string("name").nullable();
 				table.datetime("entryTime").notNullable().defaultTo(dayjs().format());
 			});
 			console.log("GuestEntry table created.");
+		} else {
+			// Check if we need to modify the existing table
+			const columns = await connectDB.raw(`
+				PRAGMA table_info(GuestEntry)
+			`);
+			const nameColumn = columns.find(col => col.name === 'name');
+			if (nameColumn && nameColumn.notnull === 1) {
+				// Create a temporary table with the new schema
+				await connectDB.schema.createTable("GuestEntry_temp", (table) => {
+					table.increments("id").primary();
+					table.integer("onecard");
+					table.string("name").nullable();
+					table.datetime("entryTime").notNullable().defaultTo(dayjs().format());
+				});
+
+				// Copy data from old table to new table
+				await connectDB.raw(`
+					INSERT INTO GuestEntry_temp (id, onecard, name, entryTime)
+					SELECT id, onecard, name, entryTime FROM GuestEntry
+				`);
+
+				// Drop the old table
+				await connectDB.schema.dropTable("GuestEntry");
+
+				// Rename the new table to the original name
+				await connectDB.raw(`
+					ALTER TABLE GuestEntry_temp RENAME TO GuestEntry
+				`);
+
+				console.log("Modified GuestEntry table to make name field nullable.");
+			}
 		}
 		console.log("SQLite connected and table ensured.");
 	} catch (err) {
