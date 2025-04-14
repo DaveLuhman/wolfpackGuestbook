@@ -148,6 +148,7 @@ class WindowManager {
 		});
 
 		this.setupMainMenu();
+		this.mainWindow.webContents.openDevTools();
 	}
 
 	createViewerWindow() {

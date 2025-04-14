@@ -9,15 +9,18 @@ const GuestEntry = {
     if (!onecardNumber || Number.isNaN(onecardNumber)) {
       throw new Error('Onecard ID is required and must be a valid number');
     }
+    if(onecardNumber.toString().length !== 7) {
+      throw new Error('Onecard ID must be 7 digits long');
+    }
 
     const entryTime = dayjs().format();
-    console.log(`${name || 'Anonymous'} written to database at ${entryTime}`);
+    console.log(`${name || 'Entry'} recorded at ${entryTime}`);
 
     try {
       return await db.transaction(async (trx) => {
         return await trx('GuestEntry').insert({
           onecard: onecardNumber,
-          name: name || null,
+          name: name || "N/A",
           entryTime
         });
       });

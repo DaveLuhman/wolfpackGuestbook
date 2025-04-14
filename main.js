@@ -1,17 +1,12 @@
 const {
 	app,
-	BrowserWindow,
 	ipcMain,
 	nativeImage,
-	dialog,
-	Menu,
 } = require("electron");
 const path = require("node:path");
-const fs = require("node:fs");
 const connectDB = require("./db.js");
 const GuestEntry = require("./GuestEntry.js");
 const HIDManager = require("./HIDManager");
-const { createObjectCsvWriter } = require("csv-writer");
 const configManager = require("./configManager");
 const windowManager = require("./windowManager");
 const soundManager = require("./soundManager");
@@ -126,13 +121,6 @@ const onDeviceData = async (error, data) => {
 
 async function initializeDevices() {
 	try {
-		// Set up event listeners first
-		HIDManager.on('data', onDeviceData);
-		HIDManager.on('error', (error) => {
-			console.error("Device error:", error.message);
-			windowManager.getMainWindow().webContents.send("device-error", error.message);
-			soundManager.playError();
-		});
 
 		// Initialize devices and get any that need manual configuration
 		const devicesNeedingConfig = await HIDManager.initializeDevices();
@@ -154,6 +142,14 @@ async function initializeDevices() {
 					windowManager.getMainWindow().webContents.send("device-error", error.message);
 				}
 			};
+
+			// Set up event listeners after initialization
+			HIDManager.on('data', onDeviceData);
+			HIDManager.on('error', (error) => {
+				console.error("Device error:", error.message);
+				windowManager.getMainWindow().webContents.send("device-error", error.message);
+				soundManager.playError();
+			});
 
 			// Remove any existing listener first
 			if (ipcListeners.has("hid-selected")) {
