@@ -190,7 +190,6 @@ class HIDManager {
 	async setDevice(path, type) {
 		// Check if we already have this device initialized
 		if (this.devices.has(type) && this.devices.get(type).path === path) {
-			console.log(`${type === "msr" ? "MagTek" : "Barcode"} device already initialized`);
 			return;
 		}
 
@@ -208,28 +207,11 @@ class HIDManager {
 				this.dataHandler = (dataBuffer) => {
 					try {
 						const swipeData = dataBuffer.toString().replace(/\0/g, "").trim();
-						if (!swipeData) return; // Ignore empty swipes
+						if (!swipeData) return;
 
-						console.log('Raw swipe data:', swipeData);
 						const onecardData = parseSwipeData(swipeData);
-						console.log('Parsed swipe data:', onecardData);
-
-						// Clear any remaining data in the buffer with a timeout
-						try {
-							const remainingData = device.readTimeout(100); // 100ms timeout
-							if (remainingData) {
-								console.log('Cleared additional data from buffer');
-							}
-						} catch (readError) {
-							// Ignore timeout errors
-							if (!readError.message.includes('timeout')) {
-								console.error('Error reading remaining data:', readError);
-							}
-						}
-
 						this.handleDeviceData(null, onecardData, "msr");
 					} catch (error) {
-						console.error("Error processing swipe data:", error.message);
 						this.handleDeviceData(error, null, "msr");
 					}
 				};
@@ -243,13 +225,11 @@ class HIDManager {
 				this.dataHandler = (dataBuffer) => {
 					try {
 						const scanData = dataBuffer.toString().replace(/\0/g, '').trim();
-						if (!scanData) return; // Ignore empty scans
+						if (!scanData) return;
 
-						console.log('Raw scan data:', scanData);
 						const onecard = parseScanData(scanData);
 						this.handleDeviceData(null, onecard, "barcode");
 					} catch (error) {
-						console.error("Error processing scan data:", error.message);
 						this.handleDeviceData(error, null, "barcode");
 					}
 				};
@@ -259,7 +239,6 @@ class HIDManager {
 			if (device) {
 				this.devices.set(type, device);
 				this.isInitialized = true;
-				console.log(`${type === "msr" ? "MagTek" : "Barcode"} device initialized successfully`);
 			}
 		} catch (error) {
 			console.error(`Error setting ${type} device:`, error);
@@ -268,38 +247,22 @@ class HIDManager {
 	}
 
 	handleDeviceData(error, data, deviceType) {
-		console.log('HIDManager received data:', { error, data, deviceType });
-
-		// Check for initialization messages first
-		if (typeof error === 'string' && error.includes("Barcode scanner initialized")) {
-			console.log('Initialization message received:', error);
+		if (error) {
+			this.notifyCallbacks("error", error);
 			return;
 		}
 
-		if (error) {
-			console.error('HIDManager error:', error);
-			this.notifyCallbacks("error", error);
+		let processedData = data;
+		if (deviceType === 'barcode' && typeof data === 'number') {
+			processedData = { onecard: data, name: null };
+		} else if (deviceType === 'msr' && typeof data === 'object') {
+			processedData = data;
+		}
+
+		if (processedData?.onecard) {
+			this.notifyCallbacks("data", processedData);
 		} else {
-			// Ensure data is in the correct format based on device type
-			let processedData = data;
-
-			if (deviceType === 'barcode' && typeof data === 'number') {
-				processedData = { onecard: data, name: null };
-				console.log('Barcode data processed:', processedData);
-			} else if (deviceType === 'msr' && typeof data === 'object') {
-				processedData = data; // MSR already returns { onecard, name }
-				console.log('MSR data processed:', processedData);
-			} else {
-				console.warn('Unexpected data format:', { data, deviceType });
-			}
-
-			if (processedData?.onecard) {
-				console.log('Sending processed data to callbacks:', processedData);
-				this.notifyCallbacks("data", processedData);
-			} else {
-				console.error('Invalid processed data format:', processedData);
-				this.notifyCallbacks("error", new Error('Invalid data format received from device'));
-			}
+			this.notifyCallbacks("error", new Error('Invalid data format received from device'));
 		}
 	}
 

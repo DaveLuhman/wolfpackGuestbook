@@ -19,141 +19,52 @@ const appIcon = nativeImage.createFromPath(
 const ipcListeners = new Map();
 
 const onDeviceData = async (error, data) => {
-	let onecard;
-	let name;
-
-	// Handle different data formats based on device type
 	if (error) {
-		// Only treat it as an error if it's actually an error object or has an error property
-		if (error instanceof Error || error.error || error.message) {
-			// Handle different types of errors
-			let errorMessage;
-			let errorDetails = {};
-
-			if (error instanceof Error) {
-				errorMessage = error.message;
-				errorDetails = {
-					message: error.message,
-					stack: error.stack,
-					devicePath: error.devicePath,
-					retryCount: error.retryCount,
-					originalError: error.originalError ? {
-						message: error.originalError.message,
-						stack: error.originalError.stack
-					} : null
-				};
-			} else if (typeof error === 'object') {
-				errorMessage = error.message || error.error || JSON.stringify(error);
-				errorDetails = {
-					rawError: error,
-					devicePath: error.devicePath,
-					retryCount: error.retryCount
-				};
-			} else {
-				errorMessage = String(error);
-				errorDetails = { message: errorMessage };
-			}
-
-			console.error("Error during device read:", errorMessage);
-			console.error("Error details:", JSON.stringify(errorDetails, null, 2));
-
-			windowManager
-				.getMainWindow()
-				.webContents.send("device-error", `Device error: ${errorMessage}`);
-			soundManager.playError();
-			return;
-		}
-		// If it's not an error, treat it as data
-		if (typeof error === 'string') {
-			onecard = error;
-			name = null;
-		} else if (error && typeof error === 'object') {
-			onecard = error.onecard;
-			name = error.name;
-		}
-	} else if (data) {
-		if (typeof data === 'string') {
-			onecard = data;
-			name = null;
-		} else if (typeof data === 'object') {
-			onecard = data.onecard;
-			name = data.name;
-		} else if (typeof data === 'number') {
-			onecard = data;
-			name = null;
-		}
-	}
-
-	// Convert onecard to number if it's a string
-	if (onecard) {
-		onecard = typeof onecard === 'string' ? Number(onecard) : onecard;
-	}
-
-	if (!onecard || Number.isNaN(onecard)) {
-		console.error("Invalid data format received:", error || data);
-		windowManager
-			.getMainWindow()
-			.webContents.send("device-error", "Invalid data format received from device");
+		windowManager.getMainWindow().webContents.send("device-error", error.message);
 		soundManager.playError();
 		return;
 	}
 
 	try {
-		await GuestEntry.create(onecard, name);
-		windowManager.getMainWindow().webContents.send("guest-entry", {
-			name,
-			onecard,
-		});
+		await GuestEntry.create(data.onecard, data.name);
+		windowManager.getMainWindow().webContents.send("guest-entry", data);
 		soundManager.playSuccess();
 	} catch (dbError) {
 		console.error("Error handling entry:", dbError.message);
-		windowManager
-			.getMainWindow()
-			.webContents.send("entry-error", `Database error: ${dbError.message}`);
+		windowManager.getMainWindow().webContents.send("entry-error", `Database error: ${dbError.message}`);
 		soundManager.playError();
 	}
 };
 
 async function initializeDevices() {
 	try {
-		// Remove any existing event listeners first
 		HIDManager.off('data', onDeviceData);
 		HIDManager.off('error', (error) => {
-			console.error("Device error:", error.message);
 			windowManager.getMainWindow().webContents.send("device-error", error.message);
 			soundManager.playError();
 		});
 
-		// Initialize devices and get any that need manual configuration
 		const devicesNeedingConfig = await HIDManager.initializeDevices();
 
-		// Set up event listeners for device data
 		HIDManager.on('data', onDeviceData);
 		HIDManager.on('error', (error) => {
-			console.error("Device error:", error.message);
 			windowManager.getMainWindow().webContents.send("device-error", error.message);
 			soundManager.playError();
 		});
 
 		if (devicesNeedingConfig) {
-			console.log("Some devices need manual configuration, showing selection dialog...");
 			windowManager.getMainWindow().webContents.send("select-hid", devicesNeedingConfig);
 
-			// Store the listener for cleanup
 			const hidSelectionListener = async (event, { path, type }) => {
-				console.log(`HID device selected: ${path} (${type})`);
 				try {
 					windowManager.getMainWindow().setSize(400, 500);
 					await HIDManager.setDevice(path, type);
-					// Save the selected device
 					configManager.setSelectedDevice(type, path);
 				} catch (error) {
-					console.error("Error setting device:", error.message);
 					windowManager.getMainWindow().webContents.send("device-error", error.message);
 				}
 			};
 
-			// Remove any existing listener first
 			if (ipcListeners.has("hid-selected")) {
 				ipcMain.removeListener("hid-selected", ipcListeners.get("hid-selected"));
 			}
@@ -162,7 +73,6 @@ async function initializeDevices() {
 			ipcListeners.set("hid-selected", hidSelectionListener);
 		}
 	} catch (error) {
-		console.error("Error initializing devices:", error.message);
 		windowManager.getMainWindow().webContents.send("device-error", error.message);
 	}
 }
