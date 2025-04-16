@@ -86,6 +86,9 @@ const onDeviceData = async (error, data) => {
 		} else if (typeof data === 'object') {
 			onecard = data.onecard;
 			name = data.name;
+		} else if (typeof data === 'number') {
+			onecard = data;
+			name = null;
 		}
 	}
 
@@ -121,9 +124,16 @@ const onDeviceData = async (error, data) => {
 
 async function initializeDevices() {
 	try {
-
 		// Initialize devices and get any that need manual configuration
 		const devicesNeedingConfig = await HIDManager.initializeDevices();
+
+		// Set up event listeners for device data
+		HIDManager.on('data', onDeviceData);
+		HIDManager.on('error', (error) => {
+			console.error("Device error:", error.message);
+			windowManager.getMainWindow().webContents.send("device-error", error.message);
+			soundManager.playError();
+		});
 
 		if (devicesNeedingConfig) {
 			console.log("Some devices need manual configuration, showing selection dialog...");
@@ -142,14 +152,6 @@ async function initializeDevices() {
 					windowManager.getMainWindow().webContents.send("device-error", error.message);
 				}
 			};
-
-			// Set up event listeners after initialization
-			HIDManager.on('data', onDeviceData);
-			HIDManager.on('error', (error) => {
-				console.error("Device error:", error.message);
-				windowManager.getMainWindow().webContents.send("device-error", error.message);
-				soundManager.playError();
-			});
 
 			// Remove any existing listener first
 			if (ipcListeners.has("hid-selected")) {

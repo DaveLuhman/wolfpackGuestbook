@@ -206,11 +206,11 @@ class HIDManager {
 
 			if (type === "msr") {
 				await startListeningToSwiper(path, (error, data) => {
-					this.handleDeviceData(error, data);
+					this.handleDeviceData(error, data, "msr");
 				});
 			} else if (type === "barcode") {
 				await startListeningToScanner(path, (error, data) => {
-					this.handleDeviceData(error, data);
+					this.handleDeviceData(error, data, "barcode");
 				});
 			} else {
 				throw new Error(`Invalid device type: ${type}`);
@@ -226,11 +226,33 @@ class HIDManager {
 		}
 	}
 
-	handleDeviceData(error, data) {
+	handleDeviceData(error, data, deviceType) {
+		console.log('HIDManager received data:', { error, data, deviceType });
+
 		if (error) {
+			console.error('HIDManager error:', error);
 			this.notifyCallbacks("error", error);
 		} else {
-			this.notifyCallbacks("data", data);
+			// Ensure data is in the correct format based on device type
+			let processedData = data;
+
+			if (deviceType === 'barcode' && typeof data === 'number') {
+				processedData = { onecard: data, name: null };
+				console.log('Barcode data processed:', processedData);
+			} else if (deviceType === 'msr' && typeof data === 'object') {
+				processedData = data; // MSR already returns { onecard, name }
+				console.log('MSR data processed:', processedData);
+			} else {
+				console.warn('Unexpected data format:', { data, deviceType });
+			}
+
+			if (processedData?.onecard) {
+				console.log('Sending processed data to callbacks:', processedData);
+				this.notifyCallbacks("data", processedData);
+			} else {
+				console.error('Invalid processed data format:', processedData);
+				this.notifyCallbacks("error", new Error('Invalid data format received from device'));
+			}
 		}
 	}
 
