@@ -284,6 +284,8 @@ class WindowManager {
 					nodeIntegration: false,
 					contextIsolation: true,
 					webSecurity: true,
+					enableRemoteModule: false,
+					sandbox: true
 				},
 			});
 

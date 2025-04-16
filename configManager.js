@@ -90,7 +90,7 @@ class ConfigManager {
 	}
 
 	async checkPasswordConfig() {
-		if (!this.config.password && this.config.password !== "") {
+		if (this.config.password === null || this.config.password === undefined || this.config.password === "") {
 			const password = await this.promptForPassword();
 			this.setPassword(password || "");
 		}

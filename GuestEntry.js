@@ -20,7 +20,7 @@ const GuestEntry = {
       return await db.transaction(async (trx) => {
         return await trx('GuestEntry').insert({
           onecard: onecardNumber,
-          name: name || "N/A",
+          name: name,
           entryTime
         });
       });
