@@ -96,16 +96,36 @@ class WindowManager {
 					return;
 				}
 
+				// Format entries for CSV
+				const formattedEntries = entries.map(entry => {
+					const date = new Date(entry.entryTime);
+					const formattedDate = date.toLocaleString('en-US', {
+						month: '2-digit',
+						day: '2-digit',
+						year: 'numeric',
+						hour: '2-digit',
+						minute: '2-digit',
+						second: '2-digit',
+						hour12: true
+					}).replace(',', '');
+
+					return {
+						dateTime: formattedDate,
+						onecard: entry.onecard,
+						name: entry.name || "N/A"
+					};
+				});
+
 				const csvWriter = createObjectCsvWriter({
 					path: filePath,
 					header: [
-						{ id: "name", title: "Name" },
-						{ id: "onecard", title: "Onecard ID" },
-						{ id: "entryTime", title: "Date/Time" },
+						{ id: "dateTime", title: "Date & Time" },
+						{ id: "onecard", title: "ID #" },
+						{ id: "name", title: "Last Name/First Name  MI" }
 					],
 				});
 
-				await csvWriter.writeRecords(entries);
+				await csvWriter.writeRecords(formattedEntries);
 				console.log("CSV file written successfully");
 			} catch (error) {
 				console.error("Error exporting CSV:", error.message);
