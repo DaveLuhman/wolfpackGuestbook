@@ -373,7 +373,7 @@ ipcMain.on("export-csv", async (event) => {
 			return {
 				'Date & Time': formattedDate,
 				'ID #': entry.onecard || '',
-				'Last Name/First Name  MI': formattedName
+				'Last Name/First Name  MI': entry.name
 			};
 		});
 
