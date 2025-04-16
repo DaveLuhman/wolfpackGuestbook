@@ -6,9 +6,8 @@ contextBridge.exposeInMainWorld(
   'Electron',
   {
     sendResponse: (channel, value) => {
-      // Whitelist the channels we want to allow
-      const validChannels = ['password-prompt-response'];
-      if (validChannels.includes(channel)) {
+      // Allow any channel that starts with 'password-prompt-response-'
+      if (channel.startsWith('password-prompt-response-')) {
         ipcRenderer.send(channel, value);
       }
     }
