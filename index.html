@@ -63,8 +63,13 @@
       const body = document.body;
 
       body.style.backgroundColor = "red";
-      entryData.innerHTML = `<p>${message}</p>
-                           <p id="countdown">Clearing in 5 seconds...</p>`;
+      entryData.innerHTML = `
+        <div class="error-container">
+          <div class="error-icon">⚠️</div>
+          <p class="error-message">${message}</p>
+          <p id="countdown" class="countdown">Clearing in 5 seconds...</p>
+        </div>
+      `;
 
       let countdown = 5;
       const countdownElement = document.getElementById("countdown");

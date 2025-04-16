@@ -65,63 +65,31 @@ const onDeviceData = async (error, data) => {
 		}
 		// If it's not an error, treat it as data
 		if (typeof error === 'string') {
-			// Skip initialization messages
-			if (error.includes("Barcode scanner initialized")) {
-				return;
-			}
-			// Remove any non-numeric characters and convert to number
-			onecard = parseInt(error.replace(/\D/g, ''), 10);
-			if (isNaN(onecard)) {
-				throw new Error('Invalid barcode data: non-numeric value');
-			}
+			onecard = error;
 			name = null;
 		} else if (error && typeof error === 'object') {
-			if (typeof error.onecard === 'number') {
-				onecard = error.onecard;
-			} else if (typeof error.onecard === 'string') {
-				onecard = parseInt(error.onecard.replace(/\D/g, ''), 10);
-				if (isNaN(onecard)) {
-					throw new Error('Invalid MSR data: non-numeric onecard value');
-				}
-			} else {
-				throw new Error('Invalid MSR data format');
-			}
-			name = error.name || null;
+			onecard = error.onecard;
+			name = error.name;
 		}
 	} else if (data) {
 		if (typeof data === 'string') {
-			// Skip initialization messages
-			if (data.includes("Barcode scanner initialized")) {
-				return;
-			}
-			// Remove any non-numeric characters and convert to number
-			onecard = parseInt(data.replace(/\D/g, ''), 10);
-			if (isNaN(onecard)) {
-				throw new Error('Invalid barcode data: non-numeric value');
-			}
+			onecard = data;
 			name = null;
 		} else if (typeof data === 'object') {
-			if (typeof data.onecard === 'number') {
-				onecard = data.onecard;
-			} else if (typeof data.onecard === 'string') {
-				onecard = parseInt(data.onecard.replace(/\D/g, ''), 10);
-				if (isNaN(onecard)) {
-					throw new Error('Invalid MSR data: non-numeric onecard value');
-				}
-			} else {
-				throw new Error('Invalid MSR data format');
-			}
-			name = data.name || null;
+			onecard = data.onecard;
+			name = data.name;
 		} else if (typeof data === 'number') {
 			onecard = data;
 			name = null;
-		} else {
-			throw new Error('Invalid data format received from device');
 		}
 	}
 
-	// Final validation
-	if (!onecard || isNaN(onecard)) {
+	// Convert onecard to number if it's a string
+	if (onecard) {
+		onecard = typeof onecard === 'string' ? Number(onecard) : onecard;
+	}
+
+	if (!onecard || Number.isNaN(onecard)) {
 		console.error("Invalid data format received:", error || data);
 		windowManager
 			.getMainWindow()
@@ -233,4 +201,5 @@ app.on("activate", () => {
 		windowManager.createMainWindow();
 	}
 });
+
 

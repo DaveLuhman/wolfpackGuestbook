@@ -19,21 +19,46 @@
             <input type="text" id="onecard" required>
         </div>
         <button type="submit">Submit</button>
-        <p class="error" id="error-message"></p>
+        <div class="error-container" id="error-container" style="display: none;">
+            <div class="error-icon">⚠️</div>
+            <p class="error" id="error-message"></p>
+        </div>
     </form>
     <script>
         const { ipcRenderer } = require('electron');
         const form = document.getElementById('manual-entry-form');
         const errorMessage = document.getElementById('error-message');
+        const errorContainer = document.getElementById('error-container');
+
+        function showError(message) {
+            errorContainer.style.display = 'block';
+            errorMessage.textContent = message;
+            // Add red border to form fields
+            document.getElementById('name').classList.add('error-input');
+            document.getElementById('onecard').classList.add('error-input');
+        }
+
+        function clearError() {
+            errorContainer.style.display = 'none';
+            errorMessage.textContent = '';
+            // Remove red border from form fields
+            document.getElementById('name').classList.remove('error-input');
+            document.getElementById('onecard').classList.remove('error-input');
+        }
 
         form.addEventListener('submit', (event) => {
             event.preventDefault();
-            errorMessage.textContent = '';
+            clearError();
             const name = document.getElementById('name').value.trim();
             const onecard = document.getElementById('onecard').value.trim();
 
             if (!name || !onecard) {
-                errorMessage.textContent = 'Please fill in all fields';
+                showError('Please fill in all required fields');
+                return;
+            }
+
+            if (!/^\d{7}$/.test(onecard)) {
+                showError('Onecard number must be exactly 7 digits');
                 return;
             }
 
@@ -41,7 +66,7 @@
         });
 
         ipcRenderer.on('manual-entry-error', (event, error) => {
-            errorMessage.textContent = error;
+            showError(`Error: ${error}`);
         });
 
         ipcRenderer.on('manual-entry-success', () => {
