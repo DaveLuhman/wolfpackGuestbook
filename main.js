@@ -116,6 +116,14 @@ const onDeviceData = async (error, data) => {
 
 async function initializeDevices() {
 	try {
+		// Remove any existing event listeners first
+		HIDManager.off('data', onDeviceData);
+		HIDManager.off('error', (error) => {
+			console.error("Device error:", error.message);
+			windowManager.getMainWindow().webContents.send("device-error", error.message);
+			soundManager.playError();
+		});
+
 		// Initialize devices and get any that need manual configuration
 		const devicesNeedingConfig = await HIDManager.initializeDevices();
 

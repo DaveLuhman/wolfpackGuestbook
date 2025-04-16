@@ -1,12 +1,12 @@
 const HID = require("node-hid");
 const {
 	getMagtekSwiper,
-	startListeningToSwiper,
+	parseSwipeData,
 	closeSwiper,
 } = require("./lib/magtekSwiper");
 const {
 	getScanner,
-	startListeningToScanner,
+	parseScanData,
 	closeScanner,
 } = require("./lib/barcodeScanner");
 const reconnectionManager = require("./lib/reconnectionUtility");
@@ -33,10 +33,11 @@ class HIDManager {
 	constructor() {
 		this.currentDevice = null;
 		this.deviceType = null; // 'msr' or 'barcode'
-		this.callbacks = new Set();
+		this.callbacks = new Map(); // Use Map to track event listeners
 		this.isInitialized = false;
 		this.devices = new Map(); // Track multiple devices
 		this.initializationPromise = null; // Track ongoing initialization
+		this.dataHandler = null; // Track the current data handler
 	}
 
 	getDevices() {
@@ -66,7 +67,14 @@ class HIDManager {
 	async initializeDevices() {
 		// If initialization is already in progress, return the existing promise
 		if (this.initializationPromise) {
+			console.log("Initialization already in progress, waiting...");
 			return this.initializationPromise;
+		}
+
+		// If devices are already initialized, return null
+		if (this.isInitialized && this.devices.size > 0) {
+			console.log("Devices already initialized, skipping...");
+			return null;
 		}
 
 		// Create a new initialization promise
@@ -100,26 +108,21 @@ class HIDManager {
 								if (type === "msr") msrConfigured = true;
 								if (type === "barcode") scannerConfigured = true;
 							} catch (error) {
-								console.error(
-									`Error initializing saved ${type} device:`,
-									error.message,
-								);
+								console.error(`Error initializing saved ${type} device:`, error.message);
 							}
 						}
 					}
 				}
 
-				// If both devices are configured from saved settings, we're done
-				if (msrConfigured && scannerConfigured) {
-					console.log("All devices configured from saved settings");
+				// If we've successfully initialized from saved devices, we're done
+				if (msrConfigured || scannerConfigured) {
+					console.log("Devices initialized from saved configuration");
 					return null;
 				}
 
-				// If no saved devices or they're not available, try auto-configuration
+				// Only proceed with auto-configuration if we haven't initialized any devices
 				if (devices.length > 1) {
-					console.log(
-						"Multiple HID devices detected, attempting to auto-configure...",
-					);
+					console.log("Multiple HID devices detected, attempting to auto-configure...");
 
 					// Only try to configure MSR if not already configured
 					if (!msrConfigured) {
@@ -147,10 +150,7 @@ class HIDManager {
 								scannerConfigured = true;
 							}
 						} catch (scannerError) {
-							console.error(
-								"Error configuring barcode scanner:",
-								scannerError.message,
-							);
+							console.error("Error configuring barcode scanner:", scannerError.message);
 						}
 					}
 
@@ -163,9 +163,7 @@ class HIDManager {
 					const device = devices[0];
 					const type = device.manufacturer === "Symbol" ? "barcode" : "msr";
 					try {
-						console.log(
-							`${type === "msr" ? "MagTek Swiper" : "Symbol Scanner"} detected, starting device...`,
-						);
+						console.log(`${type === "msr" ? "MagTek Swiper" : "Symbol Scanner"} detected, starting device...`);
 						await this.setDevice(device.path, type);
 						configManager.setSelectedDevice(type, device.path);
 						if (type === "msr") msrConfigured = true;
@@ -190,38 +188,81 @@ class HIDManager {
 	}
 
 	async setDevice(path, type) {
-		if (!path || !type) {
-			throw new Error("Device path and type are required");
-		}
-
-		// Only close the current device if it's the same type
-		if (this.devices.has(type)) {
-			await this.closeDevice(type);
+		// Check if we already have this device initialized
+		if (this.devices.has(type) && this.devices.get(type).path === path) {
+			console.log(`${type === "msr" ? "MagTek" : "Barcode"} device already initialized`);
+			return;
 		}
 
 		try {
-			this.deviceType = type;
-			this.currentDevice = path;
-			this.devices.set(type, { path, type });
+			// Close any existing device of the same type
+			await this.closeDevice(type);
 
+			let device;
 			if (type === "msr") {
-				await startListeningToSwiper(path, (error, data) => {
-					this.handleDeviceData(error, data, "msr");
-				});
+				device = await getMagtekSwiper(path);
+				// Remove any existing data handler before setting up a new one
+				if (this.dataHandler) {
+					device.removeListener('data', this.dataHandler);
+				}
+				this.dataHandler = (dataBuffer) => {
+					try {
+						const swipeData = dataBuffer.toString().replace(/\0/g, "").trim();
+						if (!swipeData) return; // Ignore empty swipes
+
+						console.log('Raw swipe data:', swipeData);
+						const onecardData = parseSwipeData(swipeData);
+						console.log('Parsed swipe data:', onecardData);
+
+						// Clear any remaining data in the buffer with a timeout
+						try {
+							const remainingData = device.readTimeout(100); // 100ms timeout
+							if (remainingData) {
+								console.log('Cleared additional data from buffer');
+							}
+						} catch (readError) {
+							// Ignore timeout errors
+							if (!readError.message.includes('timeout')) {
+								console.error('Error reading remaining data:', readError);
+							}
+						}
+
+						this.handleDeviceData(null, onecardData, "msr");
+					} catch (error) {
+						console.error("Error processing swipe data:", error.message);
+						this.handleDeviceData(error, null, "msr");
+					}
+				};
+				device.on('data', this.dataHandler);
 			} else if (type === "barcode") {
-				await startListeningToScanner(path, (error, data) => {
-					this.handleDeviceData(error, data, "barcode");
-				});
-			} else {
-				throw new Error(`Invalid device type: ${type}`);
+				device = await getScanner(path);
+				// Remove any existing data handler before setting up a new one
+				if (this.dataHandler) {
+					device.removeListener('data', this.dataHandler);
+				}
+				this.dataHandler = (dataBuffer) => {
+					try {
+						const scanData = dataBuffer.toString().replace(/\0/g, '').trim();
+						if (!scanData) return; // Ignore empty scans
+
+						console.log('Raw scan data:', scanData);
+						const onecard = parseScanData(scanData);
+						this.handleDeviceData(null, onecard, "barcode");
+					} catch (error) {
+						console.error("Error processing scan data:", error.message);
+						this.handleDeviceData(error, null, "barcode");
+					}
+				};
+				device.on('data', this.dataHandler);
 			}
 
-			this.isInitialized = true;
+			if (device) {
+				this.devices.set(type, device);
+				this.isInitialized = true;
+				console.log(`${type === "msr" ? "MagTek" : "Barcode"} device initialized successfully`);
+			}
 		} catch (error) {
-			this.devices.delete(type);
-			this.currentDevice = null;
-			this.deviceType = null;
-			this.isInitialized = false;
+			console.error(`Error setting ${type} device:`, error);
 			throw error;
 		}
 	}
@@ -268,6 +309,12 @@ class HIDManager {
 		}
 
 		try {
+			const device = this.devices.get(type);
+			if (this.dataHandler) {
+				device.removeListener('data', this.dataHandler);
+				this.dataHandler = null;
+			}
+
 			if (type === "msr") {
 				await closeSwiper();
 			} else if (type === "barcode") {
@@ -296,26 +343,35 @@ class HIDManager {
 		if (!event || typeof callback !== "function") {
 			throw new Error("Invalid event or callback");
 		}
-		this.callbacks.add({ event, callback });
+
+		// Remove any existing callback for this event
+		this.off(event, callback);
+
+		// Add the new callback
+		if (!this.callbacks.has(event)) {
+			this.callbacks.set(event, new Set());
+		}
+		this.callbacks.get(event).add(callback);
 	}
 
 	off(event, callback) {
 		if (!event || typeof callback !== "function") {
 			throw new Error("Invalid event or callback");
 		}
-		for (const cb of this.callbacks) {
-			if (cb.event === event && cb.callback === callback) {
-				this.callbacks.delete(cb);
-				break;
+
+		if (this.callbacks.has(event)) {
+			this.callbacks.get(event).delete(callback);
+			if (this.callbacks.get(event).size === 0) {
+				this.callbacks.delete(event);
 			}
 		}
 	}
 
 	notifyCallbacks(event, data) {
-		for (const cb of this.callbacks) {
-			if (cb.event === event) {
+		if (this.callbacks.has(event)) {
+			for (const callback of this.callbacks.get(event)) {
 				try {
-					cb.callback(data);
+					callback(data);
 				} catch (error) {
 					console.error(`Error in callback for event ${event}:`, error);
 				}
@@ -324,8 +380,17 @@ class HIDManager {
 	}
 
 	async close() {
-		await this.closeCurrentDevice();
+		// Clear all callbacks
 		this.callbacks.clear();
+
+		// Close all devices
+		for (const [type, device] of this.devices) {
+			await this.closeDevice(type);
+		}
+
+		this.devices.clear();
+		this.isInitialized = false;
+		this.initializationPromise = null;
 	}
 }
 
