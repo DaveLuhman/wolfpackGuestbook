@@ -232,27 +232,66 @@ class HIDManager {
 		if (error) {
 			console.error('HIDManager error:', error);
 			this.notifyCallbacks("error", error);
-		} else {
-			// Ensure data is in the correct format based on device type
-			let processedData = data;
+			return;
+		}
 
-			if (deviceType === 'barcode' && typeof data === 'number') {
-				processedData = { onecard: data, name: null };
-				console.log('Barcode data processed:', processedData);
-			} else if (deviceType === 'msr' && typeof data === 'object') {
-				processedData = data; // MSR already returns { onecard, name }
-				console.log('MSR data processed:', processedData);
+		// Ensure data is in the correct format based on device type
+		let processedData = null;
+
+		try {
+			if (deviceType === 'barcode') {
+				// For barcode scanner, data should be a number or numeric string
+				if (typeof data === 'number') {
+					processedData = { onecard: data, name: null };
+				} else if (typeof data === 'string') {
+					// Remove any non-numeric characters and convert to number
+					const numericValue = parseInt(data.replace(/\D/g, ''), 10);
+					if (!isNaN(numericValue)) {
+						processedData = { onecard: numericValue, name: null };
+					} else {
+						throw new Error('Invalid barcode data: non-numeric value');
+					}
+				} else {
+					throw new Error('Invalid barcode data format');
+				}
+			} else if (deviceType === 'msr') {
+				// For MSR, data should be an object with onecard and optional name
+				if (typeof data === 'object' && data !== null) {
+					if (typeof data.onecard === 'number') {
+						processedData = { onecard: data.onecard, name: data.name || null };
+					} else if (typeof data.onecard === 'string') {
+						// Remove any non-numeric characters and convert to number
+						const numericValue = parseInt(data.onecard.replace(/\D/g, ''), 10);
+						if (!isNaN(numericValue)) {
+							processedData = { onecard: numericValue, name: data.name || null };
+						} else {
+							throw new Error('Invalid MSR data: non-numeric onecard value');
+						}
+					} else {
+						throw new Error('Invalid MSR data format');
+					}
+				} else {
+					throw new Error('Invalid MSR data: expected object');
+				}
 			} else {
-				console.warn('Unexpected data format:', { data, deviceType });
+				throw new Error(`Invalid device type: ${deviceType}`);
 			}
 
-			if (processedData?.onecard) {
-				console.log('Sending processed data to callbacks:', processedData);
-				this.notifyCallbacks("data", processedData);
-			} else {
-				console.error('Invalid processed data format:', processedData);
-				this.notifyCallbacks("error", new Error('Invalid data format received from device'));
+			// Validate the processed data
+			if (!processedData || typeof processedData.onecard !== 'number' || isNaN(processedData.onecard)) {
+				throw new Error('Invalid processed data: missing or invalid onecard number');
 			}
+
+			// Ensure name is either a string or null
+			if (processedData.name !== null && typeof processedData.name !== 'string') {
+				processedData.name = null;
+			}
+
+			console.log('Processed device data:', processedData);
+			this.notifyCallbacks("data", processedData);
+		} catch (error) {
+			console.error('Error processing device data:', error);
+			this.notifyCallbacks("error", error);
 		}
 	}
 
