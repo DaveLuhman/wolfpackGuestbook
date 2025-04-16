@@ -344,16 +344,49 @@ ipcMain.on("export-csv", async (event) => {
 
 		if (canceled) return;
 
+		// Format entries according to requested format
+		const formattedEntries = entries.map(entry => {
+			// Format date/time
+			const date = new Date(entry.entryTime);
+			const formattedDate = date.toLocaleString('en-US', {
+				month: '2-digit',
+				day: '2-digit',
+				year: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				second: '2-digit',
+				hour12: true
+			});
+
+			// Format name (assuming format is "First Last" or "First Middle Last")
+			let formattedName = entry.name;
+			if (entry.name !== "Anonymous" && entry.name !== "Guest Visitor") {
+				const nameParts = entry.name.split(' ');
+				if (nameParts.length >= 2) {
+					const lastName = nameParts[nameParts.length - 1];
+					const firstName = nameParts[0];
+					const middleInitial = nameParts.length > 2 ? nameParts[1].charAt(0) : '';
+					formattedName = `${lastName}/${firstName} ${middleInitial}`.trim();
+				}
+			}
+
+			return {
+				'Date & Time': formattedDate,
+				'ID #': entry.onecard || '',
+				'Last Name/First Name  MI': formattedName
+			};
+		});
+
 		const csvWriter = createObjectCsvWriter({
 			path: filePath,
 			header: [
-				{ id: "name", title: "Name" },
-				{ id: "onecard", title: "Onecard ID" },
-				{ id: "entryTime", title: "Date/Time" },
-			],
+				{ id: 'Date & Time', title: 'Date & Time' },
+				{ id: 'ID #', title: 'ID #' },
+				{ id: 'Last Name/First Name  MI', title: 'Last Name/First Name  MI' }
+			]
 		});
 
-		await csvWriter.writeRecords(entries);
+		await csvWriter.writeRecords(formattedEntries);
 		console.log("CSV file written successfully");
 	} catch (error) {
 		console.error("Error exporting CSV:", error.message);
