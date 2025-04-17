@@ -157,5 +157,16 @@ button:hover {
   scrollbar-color: #ADD8E6 #001f3f;
 }
 
+#device-status {
+    margin: 20px 0;
+    text-align: center;
+}
+
+#device-status p {
+    margin: 5px 0;
+    font-size: 0.9em;
+    color: #ffffff;
+}
+
 
 
