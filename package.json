@@ -1,13 +1,16 @@
 {
   "name": "wolfpack-guestbook",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "description": "guest attendance tracking application",
-  "main": "main.js",
+  "main": "src/main.js",
   "type": "commonjs",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make"
+  },
+  "config": {
+    "forge": "./config/forge.config.js"
   },
   "author": "ADO Software",
   "license": "MIT",
@@ -29,6 +32,8 @@
     "electron-squirrel-startup": "^1.0.1",
     "inquirer": "^10.1.8",
     "knex": "^3.1.0",
-    "node-hid": "^3.1.0"
+    "node-hid": "^3.1.0",
+    "speaker": "^0.5.5",
+    "wav": "^1.0.2"
   }
 }
