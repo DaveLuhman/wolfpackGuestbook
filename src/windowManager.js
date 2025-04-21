@@ -264,7 +264,7 @@ class WindowManager {
 
 			// Read the CSS file and inline its contents
 			const styleContent = fs.readFileSync(
-				path.join(__dirname, "styles.css"),
+				path.join(__dirname, "..", "public", "styles.css"),
 				"utf-8",
 			);
 
