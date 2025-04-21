@@ -2,12 +2,15 @@
   "name": "wolfpack-guestbook",
   "version": "1.0.7",
   "description": "guest attendance tracking application",
-  "main": "main.js",
+  "main": "src/main.js",
   "type": "commonjs",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make"
+  },
+  "config": {
+    "forge": "./config/forge.config.js"
   },
   "author": "ADO Software",
   "license": "MIT",
