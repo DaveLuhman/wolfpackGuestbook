@@ -107,7 +107,7 @@ class ConfigManager {
             });
 
             // Read the CSS file and inline its contents
-            const styleContent = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf-8');
+            const styleContent = fs.readFileSync(path.join(__dirname, '../public/styles.css'), 'utf-8');
 
             const htmlContent = `<!DOCTYPE html>
 <html>

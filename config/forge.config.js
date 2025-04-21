@@ -12,7 +12,7 @@ module.exports = {
       config: {
         language: 1033,
         manufacturer: 'ADO Software',
-        icon: './img/favicon.ico',
+        icon: './public/img/favicon.ico',
         name: 'Wolfpack Guestbook',
         description: "Locally tracks attendance based on onecard swipes or guest button use."
         },
