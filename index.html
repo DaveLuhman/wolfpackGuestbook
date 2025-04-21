@@ -10,7 +10,11 @@
   <img src="img/icon-256.ico" alt="Icon" class="icon" id="logo-link" />
   <h1>Guestbook</h1>
   <div id="entry-data">
-    <p>Swipe your card or press the button to sign the guestbook...</p>
+    <p>Swipe your card, scan your barcode, or press the button to sign the guestbook...</p>
+  </div>
+  <div id="device-status">
+    <p id="swiper-status">Card Reader: Ready</p>
+    <p id="scanner-status">Barcode Scanner: Ready</p>
   </div>
   <div id="hid-selector-parent">
     <p>Select A HID MSR from the list</p>
@@ -23,6 +27,7 @@
     document.getElementById("logo-link").addEventListener("click", () => {
       ipcRenderer.send("open-viewer-window");
     });
+
     // Handle successful entry
     ipcRenderer.on("guest-entry", (event, data) => {
       const entryData = document.getElementById("entry-data");
@@ -56,7 +61,7 @@
       }, 1000);
     });
 
-    // Handle error (e.g., misswipe)
+    // Handle error (e.g., misswipe or scan error)
     ipcRenderer.on("entry-error", (event, errorMessage) => {
       const entryData = document.getElementById("entry-data");
       const body = document.body;
@@ -82,14 +87,20 @@
       }, 1000);
     });
 
+    // Handle barcode scanner status
+    ipcRenderer.on("scanner-status", (event, status) => {
+      document.getElementById("scanner-status").textContent = `Barcode Scanner: ${status}`;
+    });
+
     function resetScreen() {
       const entryData = document.getElementById("entry-data");
       const body = document.body;
 
       // Reset background color and entry data
       body.style.backgroundColor = "#00447C";
-      entryData.innerHTML = `<p>Swipe your card to sign the guestbook...</p>`;
+      entryData.innerHTML = `<p>Swipe your card, scan your barcode, or press the button to sign the guestbook...</p>`;
     }
+
     ipcRenderer.on('select-hid', (event, data) => {
       console.log('Received select-hid event with data:', data);
       const hidSelectorOptions = data.map(option => `<option value="${option.path}">${option.manufacturer} ${option.product}</option>`);

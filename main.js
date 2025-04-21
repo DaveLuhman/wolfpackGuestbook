@@ -16,6 +16,11 @@ const {
 	startListeningToSwiper,
 	closeSwiper,
 } = require("./magtekSwiper.js");
+const {
+	getBarcodeScanner,
+	startListeningToScanner,
+	closeScanner,
+} = require("./barcodeScanner.js");
 const { createObjectCsvWriter } = require("csv-writer");
 const configManager = require('./configManager');
 const windowManager = require('./windowManager');
@@ -39,6 +44,33 @@ const onSwipe = async (error, onecardData) => {
 		await GuestEntry.create(onecard, name);
 		windowManager.getMainWindow().webContents.send("guest-entry", {
 			name,
+			onecard,
+		});
+		soundManager.playSuccess();
+	} catch (dbError) {
+		console.error("Error handling entry:", dbError.message);
+		windowManager.getMainWindow().webContents.send(
+			"entry-error",
+			`Database error: ${dbError.message}`,
+		);
+		soundManager.playError();
+	}
+};
+
+const onBarcodeScan = async (error, barcodeData) => {
+	if (error) {
+		console.error("Error during barcode scan:", error.message);
+		windowManager.getMainWindow().webContents.send("scan-error", `Barcode scan error: ${error.message}`);
+		soundManager.playError();
+		return;
+	}
+
+	const { onecard, name } = barcodeData;
+
+	try {
+		await GuestEntry.create(onecard, name);
+		windowManager.getMainWindow().webContents.send("guest-entry", {
+			name: "Barcode Entry",
 			onecard,
 		});
 		soundManager.playSuccess();
@@ -126,6 +158,15 @@ app.on("ready", async () => {
 
 	console.log("Looking for Mag-Tek Swiper or other HID devices...");
 	initializeSwiper();
+
+	// Initialize barcode scanner
+	try {
+		const scannerDevice = getBarcodeScanner();
+		console.log("Symbol DS9208 scanner found, initializing...");
+		startListeningToScanner(onBarcodeScan);
+	} catch (error) {
+		console.log("No Symbol DS9208 scanner found or error initializing:", error.message);
+	}
 });
 
 app.on("window-all-closed", () => {
@@ -139,4 +180,10 @@ app.on("activate", () => {
 	if (!windowManager.getMainWindow()) {
 		windowManager.createMainWindow();
 	}
+});
+
+app.on("will-quit", () => {
+	globalShortcut.unregisterAll();
+	closeSwiper();
+	closeScanner();
 });

@@ -66,7 +66,7 @@ async function ensureTables() {
 			await connectDB.schema.createTable("GuestEntry", (table) => {
 				table.increments("id").primary();
 				table.integer("onecard");
-				table.string("name").notNullable();
+				table.string("name").nullable();
 				table.datetime("entryTime").notNullable().defaultTo(dayjs().format());
 			});
 			console.log("GuestEntry table created.");
