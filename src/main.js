@@ -23,11 +23,11 @@ const {
 } = require("./barcodeScanner.js");
 const { createObjectCsvWriter } = require("csv-writer");
 const configManager = require('./configManager');
-const windowManager = require('./windowManager');
-const soundManager = require('./soundManager');
+const windowManager = require('./windowManager.js');
+const soundManager = require('./soundManager.js');
 
 const appIcon = nativeImage.createFromPath(
-	path.join(__dirname, "img", "favicon-32.png"),
+	path.join(__dirname, "..", "public", "img", "favicon-32.png"),
 );
 
 const onSwipe = async (error, onecardData) => {

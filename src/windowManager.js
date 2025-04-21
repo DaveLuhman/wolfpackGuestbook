@@ -16,7 +16,7 @@ class WindowManager {
 		this.mainWindow = null;
 		this.viewerWindow = null;
 		this.appIcon = nativeImage.createFromPath(
-			path.join(__dirname, "img", "favicon-32.png"),
+			path.join(__dirname, "..", "public", "img", "favicon-32.png"),
 		);
 		this.setupIPC();
 	}
@@ -146,11 +146,11 @@ class WindowManager {
 				contextIsolation: false,
 			},
 			title: "Guestbook",
-			icon: path.join(__dirname, "img", "favicon.ico"),
+			icon: path.join(__dirname, "..", "public", "img", "favicon.ico"),
 		});
 
 		this.mainWindow.setIcon(this.appIcon);
-		this.mainWindow.loadFile("index.html");
+		this.mainWindow.loadFile(path.join(__dirname, "..", "public", "index.html"));
 		this.mainWindow.on("closed", () => {
 			this.mainWindow = null;
 		});
@@ -168,11 +168,11 @@ class WindowManager {
 				contextIsolation: false,
 			},
 			title: "Guestbook Viewer",
-			icon: path.join(__dirname, "img", "favicon-32.png"),
+			icon: path.join(__dirname, "..", "public", "img", "favicon-32.png"),
 		});
 
 		this.viewerWindow.setIcon(this.appIcon);
-		this.viewerWindow.loadFile("viewer.html");
+		this.viewerWindow.loadFile(path.join(__dirname, "..", "public", "viewer.html"));
 		this.viewerWindow.on("closed", () => {
 			this.viewerWindow = null;
 		});
@@ -192,7 +192,7 @@ class WindowManager {
 			title: "Manual Entry",
 		});
 		manualEntryWindow.setMenu(null);
-		manualEntryWindow.loadFile("manualEntry.html");
+		manualEntryWindow.loadFile(path.join(__dirname, "..", "public", "manualEntry.html"));
 		manualEntryWindow.on("closed", () => {
 			manualEntryWindow = null;
 		});

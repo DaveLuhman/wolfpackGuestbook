@@ -3,15 +3,15 @@
 ## **1. Introduction**
 
 ### **Project Name**
-**Wolfpack Guestbook** - Version 1.0.5
+**Wolfpack Guestbook** - Version 1.0.7
 ### **Purpose**
-Wolfpack Guestbook is an Electron-based desktop application designed to track attendance volume as a fully-enclosed software solution.  It processes card swipe data or virtual keystrokes to extract user identification information, optionally display the result to the screen, and store it to a local-only SQLite3 database. This can later be exported to CSV for further examination and analysis.
+Wolfpack Guestbook is an Electron-based desktop application designed to track attendance volume as a fully-enclosed software solution.  It processes card swipe data, barcode scans, or virtual keystrokes to extract user identification information, optionally display the result to the screen, and store it to a local-only SQLite3 database. This can later be exported to CSV for further examination and analysis.
 
 ### **Target Audience**
 This application is intended for internal use by staff managing attendance of events at Madison Area Technical College.
 
 ### **Overview**
-The application automatically detects connected MagTek HID devices, allows the user to select an appropriate device if multiple are available. Once a HID device is selected, the application listens for card swipe events and key-press events for "F24". An anonymous entry is entered on F24, and on card swipe the parsed data is inserted to the database as well as displayed for the user.
+The application automatically detects connected MagTek HID devices and Symbol DS9208 barcode scanners, allows the user to select an appropriate device if multiple are available. Once a HID device is selected, the application listens for card swipe events, barcode scans, and key-press events for "F24". An anonymous entry is entered on F24, and on card swipe or barcode scan the parsed data is inserted to the database as well as displayed for the user. The application provides audio feedback for successful entries and errors.
 
 ---
 ---
@@ -73,11 +73,23 @@ The application consists of the following main components:
 - Creates the main application window and loads the UI from `index.html`.
 - Handles IPC communication between the main process and the renderer process.
 - Detects HID devices using `magtekSwiper.js` and starts the listener.
+- Detects barcode scanners using `barcodeScanner.js` and starts the listener.
+- Manages audio feedback through `soundManager.js`.
 
 #### **magtekSwiper.js**
 - Uses the `node-hid` library to detect available HID devices.
 - Exposes functions for starting and stopping the listener, as well as selecting a HID device to listen to.
 - Parses swipe data to extract user identification information (name and Onecard ID).
+
+#### **barcodeScanner.js**
+- Uses the `node-hid` library to detect Symbol DS9208 barcode scanners.
+- Exposes functions for starting and stopping the scanner listener.
+- Processes barcode scan data to extract user identification information.
+
+#### **soundManager.js**
+- Manages audio feedback for the application.
+- Handles loading and playing of success and error sounds.
+- Integrates with the configuration system for sound toggling.
 
 #### **index.html**
 - The markup used by the renderer to display the UI, including options for selecting a HID device and displaying entry data.
@@ -241,6 +253,9 @@ The application consists of the following main components:
 - **Version 1.0.2**: Fixed an issue where the application would crash if no HID devices were detected.
 - **Version 1.0.3**: Fixed an issue where the application would not detect new HID devices.
 - **Version 1.0.4**: Added password protection to the viewer window.
+- **Version 1.0.5**: Fixed various minor bugs and improved error handling.
+- **Version 1.0.6**: Added manual entry feature.
+- **Version 1.0.7**: Added barcode scanner support for Symbol DS9208 devices and audio feedback for successful entries and errors.
 
 ### **Dependency List**
 - **Electron**: MIT License
