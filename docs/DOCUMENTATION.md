@@ -26,38 +26,8 @@ The application automatically detects connected MagTek HID devices and Symbol DS
 
 ### **High-Level Architecture**
 #### Architecture Diagram
-```mermaid
-    graph TD
-    subgraph Electron App
-        subgraph Main Process
-            A[main.js] <==> B[getMagtekSwiper - Detect HID Devices]
-            A --> C[startListeningToSwiper - Listen for Swipes]
-            C --> D[HID Device]
-            A --> E[BrowserWindow - Load index.html]
-            E -->|IPC| F[Renderer Process]
-            A --> K[Database]
-            A --> M[Password Management]
-            A --> N[Viewer Window]
-        end
 
-        subgraph Renderer Process
-            F[index.html] --> G[UI for HID Device Selection]
-            F --> H[Display Swipe Data]
-            F --> I[Error Handling UI]
-            N --> O[View/Export Entries]
-            N --> P[Password Protection]
-        end
-    end
-
-    subgraph External Components
-        J[HID Devices - MagTek Card Reader]
-        D --> J
-        L[SQLite3 Database Instance]
-        K --> L
-        Q[Config File]
-        M --> Q
-    end
-```
+![Arch Diagram](./img/architectureDiagram.png)
 
 The application consists of the following main components:
 - **Main Process (`main.js`)**: Manages the lifecycle of the application, creates the main window, handles IPC communications, and manages the HID listener.
