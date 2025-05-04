@@ -15,8 +15,17 @@ module.exports = {
         icon: './public/img/favicon.ico',
         name: 'Wolfpack Guestbook',
         description: "Locally tracks attendance based on onecard swipes or guest button use."
+      },
+    },
+    {
+      name: "@electron-forge/maker-deb",
+      config: {
+        options: {
+          maintainer: "ADO Software <support@ado.software>",
+          homepage: "https://ado.software",
         },
-    }
+      },
+    },
   ],
   plugins: [
     {
