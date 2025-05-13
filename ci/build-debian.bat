@@ -1,1 +1,0 @@
-docker run --rm  -v %cd%/out:/app/out  -w /app  guestbook-deb-builder  bash -c "npm install && npx electron-rebuild && npm run make"

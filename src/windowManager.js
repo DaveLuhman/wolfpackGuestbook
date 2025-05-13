@@ -147,6 +147,8 @@ class WindowManager {
 			},
 			title: "Guestbook",
 			icon: path.join(__dirname, "..", "public", "img", "favicon.ico"),
+			fullscreen: configManager.getKioskEnabled(),
+			frame: !configManager.getKioskEnabled(),
 		});
 
 		this.mainWindow.setIcon(this.appIcon);
@@ -154,6 +156,66 @@ class WindowManager {
 		this.mainWindow.on("closed", () => {
 			this.mainWindow = null;
 		});
+
+		// Add hidden exit button for kiosk mode
+		if (configManager.getKioskEnabled()) {
+			this.mainWindow.webContents.on('did-finish-load', () => {
+				this.mainWindow.webContents.executeJavaScript(`
+					const exitArea = document.createElement('div');
+					exitArea.style.cssText = \`
+						position: fixed;
+						top: 0;
+						left: 0;
+						width: 50px;
+						height: 50px;
+						z-index: 9999;
+					\`;
+					
+					let pressTimer;
+					let exitButton = null;
+					
+					exitArea.addEventListener('touchstart', (e) => {
+						pressTimer = setTimeout(() => {
+							if (!exitButton) {
+								exitButton = document.createElement('div');
+								exitButton.innerHTML = 'Exit Kiosk';
+								exitButton.style.cssText = \`
+									position: fixed;
+									top: 10px;
+									left: 10px;
+									background: rgba(0, 0, 0, 0.8);
+									color: white;
+									padding: 10px 20px;
+									border-radius: 5px;
+									cursor: pointer;
+									z-index: 10000;
+									font-family: Arial, sans-serif;
+									font-size: 14px;
+								\`;
+								exitButton.onclick = () => {
+									window.location.reload();
+								};
+								document.body.appendChild(exitButton);
+								
+								// Auto-hide after 5 seconds
+								setTimeout(() => {
+									if (exitButton && exitButton.parentNode) {
+										exitButton.parentNode.removeChild(exitButton);
+										exitButton = null;
+									}
+								}, 5000);
+							}
+						}, 1000); // Show after 1 second long press
+					});
+					
+					exitArea.addEventListener('touchend', () => {
+						clearTimeout(pressTimer);
+					});
+					
+					document.body.appendChild(exitArea);
+				`);
+			});
+		}
 
 		this.setupMainMenu();
 	}
@@ -176,6 +238,34 @@ class WindowManager {
 		this.viewerWindow.on("closed", () => {
 			this.viewerWindow = null;
 		});
+
+		// Add floating close button if in kiosk mode
+		if (configManager.getKioskEnabled()) {
+			this.viewerWindow.webContents.on('did-finish-load', () => {
+				this.viewerWindow.webContents.executeJavaScript(`
+					const closeBtn = document.createElement('div');
+					closeBtn.innerHTML = '×';
+					closeBtn.style.cssText = \`
+						position: fixed;
+						top: 10px;
+						right: 10px;
+						width: 30px;
+						height: 30px;
+						background: rgba(0, 0, 0, 0.5);
+						color: white;
+						border-radius: 50%;
+						display: flex;
+						align-items: center;
+						justify-content: center;
+						cursor: pointer;
+						font-size: 24px;
+						z-index: 9999;
+					\`;
+					closeBtn.onclick = () => window.close();
+					document.body.appendChild(closeBtn);
+				`);
+			});
+		}
 	}
 
 	createManualEntryWindow() {
@@ -220,6 +310,21 @@ class WindowManager {
 						type: "checkbox",
 						checked: !configManager.getSoundEnabled(),
 					},
+					{
+						label: "Kiosk Mode",
+						click: () => {
+							const currentState = configManager.getKioskEnabled();
+							configManager.setKioskEnabled(!currentState);
+							// Update the menu label
+							this.updateKioskMenuLabel();
+							// Reload the window to apply changes
+							if (this.mainWindow) {
+								this.mainWindow.reload();
+							}
+						},
+						type: "checkbox",
+						checked: configManager.getKioskEnabled(),
+					},
 					{ role: "quit" },
 				],
 			},
@@ -233,6 +338,13 @@ class WindowManager {
 		const soundMenuItem = menu.items[0].submenu.items[1];
 		soundMenuItem.label = configManager.getSoundEnabled() ? "Mute" : "Unmute";
 		soundMenuItem.checked = !configManager.getSoundEnabled();
+		Menu.setApplicationMenu(menu);
+	}
+
+	updateKioskMenuLabel() {
+		const menu = Menu.getApplicationMenu();
+		const kioskMenuItem = menu.items[0].submenu.items[2];
+		kioskMenuItem.checked = configManager.getKioskEnabled();
 		Menu.setApplicationMenu(menu);
 	}
 

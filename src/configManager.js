@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { BrowserWindow, ipcMain } = require('electron');
+const os = require('os');
 
 class ConfigManager {
     constructor() {
@@ -10,11 +11,17 @@ class ConfigManager {
     }
 
     initializeConfig() {
+        const isARM64 = os.arch() === 'arm64';
+        const isDarwin = process.platform === 'darwin';
+        
         const defaultConfig = {
             sound: {
                 enabled: true
             },
-            password: null
+            password: null,
+            kiosk: {
+                enabled: isARM64 && !isDarwin // Enable by default only on ARM64 non-Mac devices
+            }
         };
 
         // Merge default config with existing config, preserving any existing values
@@ -24,6 +31,10 @@ class ConfigManager {
             sound: {
                 ...defaultConfig.sound,
                 ...(this.config.sound || {})
+            },
+            kiosk: {
+                ...defaultConfig.kiosk,
+                ...(this.config.kiosk || {})
             }
         };
 
@@ -157,6 +168,16 @@ class ConfigManager {
                 }
             });
         });
+    }
+
+    // Kiosk mode configuration
+    getKioskEnabled() {
+        return this.config.kiosk.enabled;
+    }
+
+    setKioskEnabled(enabled) {
+        this.config.kiosk.enabled = enabled;
+        this.saveConfig();
     }
 }
 
