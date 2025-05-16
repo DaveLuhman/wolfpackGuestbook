@@ -19,6 +19,11 @@ class WindowManager {
 			path.join(__dirname, "..", "public", "img", "favicon-32.png"),
 		);
 		this.setupIPC();
+		configManager.on('configChanged', () => {
+			if (this.mainWindow) {
+				this.mainWindow.reload();
+			}
+		});
 	}
 
 	setupIPC() {
@@ -135,6 +140,12 @@ class WindowManager {
 		ipcMain.on("set-password", async (event, newPassword) => {
 			configManager.setPassword(newPassword || "");
 		});
+
+		// Handle kiosk mode toggle
+		ipcMain.on("set-kiosk-mode", async (event, enabled) => {
+			const currentState = configManager.getKioskMode();
+			configManager.setKioskMode(!currentState);
+		});
 	}
 
 	createMainWindow() {
@@ -144,11 +155,12 @@ class WindowManager {
 			webPreferences: {
 				nodeIntegration: true,
 				contextIsolation: false,
+				devTools: true
 			},
 			title: "Guestbook",
 			icon: path.join(__dirname, "..", "public", "img", "favicon.ico"),
-			fullscreen: configManager.getKioskEnabled(),
-			frame: !configManager.getKioskEnabled(),
+			fullscreen: configManager.getKioskMode(),
+			frame: !configManager.getKioskMode(),
 		});
 
 		this.mainWindow.setIcon(this.appIcon);
@@ -158,7 +170,7 @@ class WindowManager {
 		});
 
 		// Add hidden exit button for kiosk mode
-		if (configManager.getKioskEnabled()) {
+		if (configManager.getKioskMode()) {
 			this.mainWindow.webContents.on('did-finish-load', () => {
 				this.mainWindow.webContents.executeJavaScript(`
 					const exitArea = document.createElement('div');
@@ -169,48 +181,60 @@ class WindowManager {
 						width: 50px;
 						height: 50px;
 						z-index: 9999;
+						background: rgba(0, 0, 0, 0.1);
+						border-radius: 0 0 10px 0;
 					\`;
 					
 					let pressTimer;
 					let exitButton = null;
 					
-					exitArea.addEventListener('touchstart', (e) => {
-						pressTimer = setTimeout(() => {
-							if (!exitButton) {
-								exitButton = document.createElement('div');
-								exitButton.innerHTML = 'Exit Kiosk';
-								exitButton.style.cssText = \`
-									position: fixed;
-									top: 10px;
-									left: 10px;
-									background: rgba(0, 0, 0, 0.8);
-									color: white;
-									padding: 10px 20px;
-									border-radius: 5px;
-									cursor: pointer;
-									z-index: 10000;
-									font-family: Arial, sans-serif;
-									font-size: 14px;
-								\`;
-								exitButton.onclick = () => {
-									window.location.reload();
-								};
-								document.body.appendChild(exitButton);
-								
-								// Auto-hide after 5 seconds
-								setTimeout(() => {
-									if (exitButton && exitButton.parentNode) {
-										exitButton.parentNode.removeChild(exitButton);
-										exitButton = null;
-									}
-								}, 5000);
-							}
-						}, 1000); // Show after 1 second long press
-					});
-					
-					exitArea.addEventListener('touchend', () => {
+					const showExitButton = () => {
+						if (!exitButton) {
+							exitButton = document.createElement('div');
+							exitButton.innerHTML = 'Exit Kiosk';
+							exitButton.style.cssText = \`
+								position: fixed;
+								top: 10px;
+								left: 10px;
+								background: rgba(0, 0, 0, 0.8);
+								color: white;
+								padding: 10px 20px;
+								border-radius: 5px;
+								cursor: pointer;
+								z-index: 10000;
+								font-family: Arial, sans-serif;
+								font-size: 14px;
+							\`;
+							exitButton.onclick = () => {
+								window.Electron.send('set-kiosk-mode', false);
+								window.location.reload();
+							};
+							document.body.appendChild(exitButton);
+							
+							// Auto-hide after 5 seconds
+							setTimeout(() => {
+								if (exitButton && exitButton.parentNode) {
+									exitButton.parentNode.removeChild(exitButton);
+									exitButton = null;
+								}
+							}, 5000);
+						}
+					};
+
+					const startPress = () => {
+						pressTimer = setTimeout(showExitButton, 500); // Reduced to 500ms
+					};
+
+					const endPress = () => {
 						clearTimeout(pressTimer);
-					});
+					};
+					
+					// Add both touch and mouse events
+					exitArea.addEventListener('touchstart', startPress);
+					exitArea.addEventListener('touchend', endPress);
+					exitArea.addEventListener('mousedown', startPress);
+					exitArea.addEventListener('mouseup', endPress);
+					exitArea.addEventListener('mouseleave', endPress);
 					
 					document.body.appendChild(exitArea);
 				`);
@@ -240,7 +264,7 @@ class WindowManager {
 		});
 
 		// Add floating close button if in kiosk mode
-		if (configManager.getKioskEnabled()) {
+		if (configManager.getKioskMode()) {
 			this.viewerWindow.webContents.on('did-finish-load', () => {
 				this.viewerWindow.webContents.executeJavaScript(`
 					const closeBtn = document.createElement('div');
@@ -313,17 +337,13 @@ class WindowManager {
 					{
 						label: "Kiosk Mode",
 						click: () => {
-							const currentState = configManager.getKioskEnabled();
-							configManager.setKioskEnabled(!currentState);
+							const currentState = configManager.getKioskMode();
+							configManager.setKioskMode(!currentState);
 							// Update the menu label
 							this.updateKioskMenuLabel();
-							// Reload the window to apply changes
-							if (this.mainWindow) {
-								this.mainWindow.reload();
-							}
 						},
 						type: "checkbox",
-						checked: configManager.getKioskEnabled(),
+						checked: configManager.getKioskMode(),
 					},
 					{ role: "quit" },
 				],
@@ -344,7 +364,7 @@ class WindowManager {
 	updateKioskMenuLabel() {
 		const menu = Menu.getApplicationMenu();
 		const kioskMenuItem = menu.items[0].submenu.items[2];
-		kioskMenuItem.checked = configManager.getKioskEnabled();
+		kioskMenuItem.checked = configManager.getKioskMode();
 		Menu.setApplicationMenu(menu);
 	}
 

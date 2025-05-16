@@ -1,11 +1,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { BrowserWindow, ipcMain } = require('electron');
+const { BrowserWindow, ipcMain, app } = require('electron');
 const os = require('os');
+const EventEmitter = require('events');
 
-class ConfigManager {
+class ConfigManager extends EventEmitter {
     constructor() {
-        this.configPath = path.join(__dirname, "wg_config.json");
+        super();
+        this.configPath = path.join(app.getPath('userData'), "wg_config.json");
         this.config = this.loadConfig();
         this.initializeConfig();
     }
@@ -58,6 +60,7 @@ class ConfigManager {
     saveConfig() {
         try {
             fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2));
+            this.emit('configChanged');
         } catch (err) {
             console.error("Error writing wg_config.json:", err.message);
         }
@@ -171,12 +174,12 @@ class ConfigManager {
     }
 
     // Kiosk mode configuration
-    getKioskEnabled() {
+    getKioskMode() {
         return this.config.kiosk.enabled;
     }
 
-    setKioskEnabled(enabled) {
-        this.config.kiosk.enabled = enabled;
+    setKioskMode(booleanState) {
+        this.config.kiosk.enabled = booleanState;
         this.saveConfig();
     }
 }
