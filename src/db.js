@@ -6,19 +6,22 @@ const path = require("node:path");
 const os = require("node:os");
 
 function getSharedDbPath() {
-	// Determine platform-specific shared location
 	switch (process.platform) {
 		case 'win32':
-			// On Windows, use the Public directory which is accessible to all users
 			return path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'wolfpack-guestbook');
 		case 'darwin':
-			// On macOS, use /Library/Application Support
 			return '/Library/Application Support/wolfpack-guestbook';
+		case 'linux': {
+			// Prefer user-local writable location for non-root use
+			const xdgDataHome = process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
+			return path.join(xdgDataHome, 'wolfpack-guestbook');
+		}
 		default:
-			// On Linux and others, use /var/lib
-			return '/var/lib/wolfpack-guestbook';
+			// Fallback to user local share for any other platform
+			return path.join(os.homedir(), '.local', 'share', 'wolfpack-guestbook');
 	}
 }
+
 
 function checkForDatabaseFile() {
 	const directoryPath = getSharedDbPath();

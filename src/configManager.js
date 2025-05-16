@@ -1,20 +1,29 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { BrowserWindow, ipcMain } = require('electron');
+const { BrowserWindow, ipcMain, app } = require('electron');
+const os = require('os');
+const EventEmitter = require('events');
 
-class ConfigManager {
+class ConfigManager extends EventEmitter {
     constructor() {
-        this.configPath = path.join(__dirname, "wg_config.json");
+        super();
+        this.configPath = path.join(app.getPath('userData'), "wg_config.json");
         this.config = this.loadConfig();
         this.initializeConfig();
     }
 
     initializeConfig() {
+        const isARM64 = os.arch() === 'arm64';
+        const isDarwin = process.platform === 'darwin';
+        
         const defaultConfig = {
             sound: {
                 enabled: true
             },
-            password: null
+            password: null,
+            kiosk: {
+                enabled: isARM64 && !isDarwin // Enable by default only on ARM64 non-Mac devices
+            }
         };
 
         // Merge default config with existing config, preserving any existing values
@@ -24,6 +33,10 @@ class ConfigManager {
             sound: {
                 ...defaultConfig.sound,
                 ...(this.config.sound || {})
+            },
+            kiosk: {
+                ...defaultConfig.kiosk,
+                ...(this.config.kiosk || {})
             }
         };
 
@@ -47,6 +60,7 @@ class ConfigManager {
     saveConfig() {
         try {
             fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2));
+            this.emit('configChanged');
         } catch (err) {
             console.error("Error writing wg_config.json:", err.message);
         }
@@ -157,6 +171,16 @@ class ConfigManager {
                 }
             });
         });
+    }
+
+    // Kiosk mode configuration
+    getKioskMode() {
+        return this.config.kiosk.enabled;
+    }
+
+    setKioskMode(booleanState) {
+        this.config.kiosk.enabled = booleanState;
+        this.saveConfig();
     }
 }
 

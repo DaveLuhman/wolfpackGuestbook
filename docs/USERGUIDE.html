@@ -63,6 +63,7 @@
         <ul>
             <li>Added support for Symbol DS9208 barcode scanners</li>
             <li>Added audio feedback for successful entries and errors</li>
+            <li>Added Kiosk Mode for touchscreen displays</li>
         </ul>
     </div>
 
@@ -89,17 +90,17 @@
             <li><strong>Download and Run the Installer:</strong> Locate the <code>wolfpack-guestbook_v1.0.7.msi</code>
                 file and run it to install the application on your Windows 10/11 system. A desktop shortcut will be
                 created for easy access. Administrator privileges are required to install the application, but not to
-                run it. The installation process is as touchless as possible, there are no prompts to configure the
-                application during installation</li>
+                run it. The installation process is as touchless as possible; there are no prompts to configure the
+                application during installation.</li>
         </ul>
 
         <h3>Initial Configuration</h3>
         <ul>
             <li><strong>Device Detection:</strong> Upon first launch, the application will automatically detect any
-                connected MagTek HID devices and Symbol DS9208 barcode scanners. If a device is not detected, need to
+                connected MagTek HID devices and Symbol DS9208 barcode scanners. If a device is not detected, you will need to
                 connect the device and restart the application.</li>
             <li><strong>Password Setup:</strong> If a password is not set for the viewer window, you will be prompted to
-                set one before the application starts listening for card swipes On first launch, the password is
+                set one before the application starts listening for card swipes. On first launch, the password is
                 unconfigured and you will be prompted to set one, but optionally you can leave it blank.</li>
             <li><strong>Sound Settings:</strong> The application now includes audio feedback for successful entries and
                 errors. You can toggle this feature in the File menu.</li>
@@ -133,7 +134,7 @@
         <h2>3. Accessing the Data-View Window</h2>
         <h3>Opening the Viewer</h3>
         <ul>
-            <li><strong>Click the Application Logo:</strong> This will open the viewer window where you can see all
+            <li><strong>Click the Logo:</strong> This will open the viewer window where you can see all
                 recorded entries.</li>
             <li><strong>Password Protection:</strong> If enabled, you will be prompted to enter a password to access the
                 viewer.</li>
@@ -147,7 +148,7 @@
             <li><strong>Access the Viewer Window:</strong> Follow the steps in the "Accessing the Data-View Window"
                 section.</li>
             <li><strong>Export to CSV:</strong> Use the export option within the viewer to save the data in CSV format
-                for external analysis.</li>
+                for external review.</li>
             <li class="optional"><strong>Optional: Flushing the Data:</strong> After exporting, you have the option to
                 flush all data from the database. This will permanently delete all entries. To do this, select the flush
                 option and confirm your choice when prompted. Ensure that you have successfully exported the data before
@@ -159,7 +160,7 @@
         <h2>5. Setting/Changing the Password</h2>
         <h3>Password Management</h3>
         <ul>
-            <li><strong>Open the Viewer Window:</strong> Click the application logo to access the viewer.</li>
+            <li><strong>Open the Viewer Window:</strong> Click the logo to access the viewer.</li>
             <li><strong>Set/Change Password:</strong> Use the password management options within the viewer to set or
                 change the password. This ensures that only authorized users can access the data.</li>
         </ul>
@@ -208,6 +209,41 @@
                 screen, just like card swipes.</li>
             <li><strong>Error Handling:</strong> If there's an issue with the scan, an error sound will play and an
                 error message will be displayed.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>9. Kiosk Mode</h2>
+        <h3>Using Kiosk Mode</h3>
+        <ul>
+            <li><strong>What is Kiosk Mode:</strong> Kiosk mode provides a fullscreen, frameless interface optimized for touchscreen displays. This mode is particularly useful for public-facing kiosks where you want to prevent users from accessing the operating system.</li>
+            <li><strong>Enabling Kiosk Mode:</strong>
+                <ul>
+                    <li>Open the <strong>File</strong> menu in the application's menu bar</li>
+                    <li>Select <strong>Kiosk Mode</strong> to toggle the feature on/off</li>
+                    <li>The setting will persist between application restarts</li>
+                </ul>
+            </li>
+            <li><strong>Exiting Kiosk Mode:</strong>
+                <ul>
+                    <li>Long-press (1 second) the top-left corner of the screen</li>
+                    <li>A semi-transparent "Exit Kiosk" button will appear</li>
+                    <li>Tap the button to exit kiosk mode</li>
+                    <li>The button automatically disappears after 5 seconds if not used</li>
+                </ul>
+            </li>
+            <li><strong>Viewer Window in Kiosk Mode:</strong>
+                <ul>
+                    <li>When kiosk mode is enabled, the viewer window includes a floating close button in the top-right corner</li>
+                    <li>The close button is semi-transparent and easily accessible for authorized users</li>
+                </ul>
+            </li>
+            <li><strong>Platform-Specific Behavior:</strong>
+                <ul>
+                    <li>Kiosk mode is enabled by default on ARM64 non-Mac devices</li>
+                    <li>On other platforms, kiosk mode is disabled by default but can be enabled through the File menu</li>
+                </ul>
+            </li>
         </ul>
     </div>
 </body>
