@@ -7,7 +7,17 @@ const EventEmitter = require('events');
 class ConfigManager extends EventEmitter {
     constructor() {
         super();
-        this.configPath = path.join(app.getPath('userData'), "wg_config.json");
+        try {
+            this.configPath = path.join(app.getPath('userData'), 'wg_config.json');
+        } catch (e) {
+            console.warn('Failed to resolve userData path. Falling back to home directory.');
+            this.configPath = path.join(os.homedir(), '.wolfpack-guestbook', 'wg_config.json');
+        }
+
+        const fallbackDir = path.dirname(this.configPath);
+        if (!fs.existsSync(fallbackDir)) {
+            fs.mkdirSync(fallbackDir, { recursive: true, mode: 0o755 });
+        }
         this.config = this.loadConfig();
         this.initializeConfig();
     }
