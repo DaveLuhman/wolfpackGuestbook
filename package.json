@@ -7,10 +7,20 @@
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "app:dist": "electron-builder"
   },
+  "postinstall": "electron-builder install-app-deps",
   "config": {
     "forge": "./config/forge.config.js"
+  },
+  "build": {
+    "appId": "com.ado.wolfpackguestbook",
+    "productName": "Wolfpack Guestbook",
+    "copyright": "Copyright © 2025 ADO Software",
+    "mac": {
+      "category": "public.app-category.productivity"
+    }
   },
   "author": "ADO Software",
   "license": "MIT",
@@ -22,7 +32,8 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.4.0",
     "@electron-forge/plugin-fuses": "^7.4.0",
     "@electron/fuses": "^1.8.0",
-    "electron": "^31.3.1"
+    "electron": "^31.3.1",
+    "electron-builder": "^26.0.12"
   },
   "dependencies": {
     "@electron-forge/maker-wix": "^7.4.0",
@@ -33,7 +44,9 @@
     "inquirer": "^10.1.8",
     "knex": "^3.1.0",
     "node-hid": "^3.1.0",
-    "speaker": "^0.5.5",
     "wav": "^1.0.2"
+  },
+  "optionalDependencies": {
+    "speaker": "^0.5.2"
   }
 }
