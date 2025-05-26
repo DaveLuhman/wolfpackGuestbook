@@ -25,7 +25,7 @@ class ConfigManager extends EventEmitter {
     initializeConfig() {
         const isARM64 = os.arch() === 'arm64';
         const isDarwin = process.platform === 'darwin';
-        
+
         const defaultConfig = {
             sound: {
                 enabled: true
@@ -47,7 +47,11 @@ class ConfigManager extends EventEmitter {
             kiosk: {
                 ...defaultConfig.kiosk,
                 ...(this.config.kiosk || {})
-            }
+            },
+            deploymentType: {
+                ...defaultConfig.deploymentType,
+                ...(this.config.deploymentType || null)
+            },
         };
 
         // Save the merged config
@@ -112,77 +116,6 @@ class ConfigManager extends EventEmitter {
         }
     }
 
-    promptForPassword() {
-        return new Promise((resolve, _reject) => {
-            const channelId = `password-prompt-response-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-            const promptWindow = new BrowserWindow({
-                width: 300,
-                height: 250,
-                title: "Configure Viewer Password",
-                parent: require('./windowManager').getMainWindow(),
-                modal: true,
-                show: false,
-                webPreferences: {
-                    preload: path.join(__dirname, 'promptPreload.js'),
-                    nodeIntegration: false,
-                    contextIsolation: true,
-                    webSecurity: true
-                }
-            });
-
-            // Read the CSS file and inline its contents
-            const styleContent = fs.readFileSync(path.join(__dirname, '../public/styles.css'), 'utf-8');
-
-            const htmlContent = `<!DOCTYPE html>
-<html>
-    <head>
-        <meta name="response-channel" content="${channelId}">
-        <title>Configure Viewer Password</title>
-        <style>${styleContent}</style>
-    </head>
-    <body>
-        <p class="prompt-message">Enter a password for the viewer window. Leave blank for no password:</p>
-        <input id="pwd" type="password" autofocus />
-        <div class="button-container">
-            <button id="submit">Submit</button>
-            <button id="cancel">Cancel</button>
-        </div>
-        <script>
-            const responseChannel = "${channelId}";
-            document.getElementById('submit').addEventListener('click', () => {
-                const value = document.getElementById('pwd').value;
-                window.Electron.sendResponse(responseChannel, value);
-            });
-            document.getElementById('cancel').addEventListener('click', () => {
-                window.Electron.sendResponse(responseChannel, null);
-            });
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    const value = document.getElementById('pwd').value;
-                    window.Electron.sendResponse(responseChannel, value);
-                } else if (event.key === 'Escape') {
-                    event.preventDefault();
-                    window.Electron.sendResponse(responseChannel, null);
-                }
-            });
-        </script>
-    </body>
-</html>`;
-
-            promptWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
-            promptWindow.once('ready-to-show', () => {
-                promptWindow.show();
-            });
-            ipcMain.once(channelId, (event, value) => {
-                resolve(value);
-                if (!promptWindow.isDestroyed()) {
-                    promptWindow.close();
-                }
-            });
-        });
-    }
-
     // Kiosk mode configuration
     getKioskMode() {
         return this.config.kiosk.enabled;
@@ -192,6 +125,11 @@ class ConfigManager extends EventEmitter {
         this.config.kiosk.enabled = booleanState;
         this.saveConfig();
     }
+
+    getDeploymentType() {
+        return this.config.deploymentType;
+    }
+
 }
 
 module.exports = new ConfigManager();

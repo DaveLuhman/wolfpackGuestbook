@@ -1,14 +1,8 @@
 const {
 	app,
-	BrowserWindow,
 	ipcMain,
-	nativeImage,
-	dialog,
 	globalShortcut,
-	Menu,
 } = require("electron");
-const path = require("node:path");
-const fs = require('node:fs');
 const connectDB = require("./db.js");
 const GuestEntry = require("./GuestEntry.js");
 const {
@@ -17,18 +11,13 @@ const {
 	closeSwiper,
 } = require("./magtekSwiper.js");
 const {
-	getBarcodeScanner,
 	startListeningToScanner,
 	closeScanner,
 } = require("./barcodeScanner.js");
-const { createObjectCsvWriter } = require("csv-writer");
 const configManager = require('./configManager');
 const windowManager = require('./windowManager.js');
 const soundManager = require('./soundManager.js');
 
-const appIcon = nativeImage.createFromPath(
-	path.join(__dirname, "..", "public", "img", "favicon-32.png"),
-);
 
 const onSwipe = async (error, onecardData) => {
 	if (error) {
@@ -151,7 +140,7 @@ app.on("ready", async () => {
 		console.error("Failed to connect to the database:", err.message);
 		app.quit();
 	}
-
+	
 	await configManager.checkPasswordConfig();
 
 	globalShortcut.register("F24", guestButtonPressCallback);
@@ -161,7 +150,6 @@ app.on("ready", async () => {
 
 	// Initialize barcode scanner
 	try {
-		const scannerDevice = getBarcodeScanner();
 		console.log("Symbol DS9208 scanner found, initializing...");
 		startListeningToScanner(onBarcodeScan);
 	} catch (error) {

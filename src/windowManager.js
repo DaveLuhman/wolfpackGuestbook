@@ -314,6 +314,25 @@ class WindowManager {
 			manualEntryWindow = null;
 		});
 	}
+	createDeviceOnboardingWindow() {
+		let deviceOnboardingWindow = new BrowserWindow({
+			width: 400,
+			height: 300,
+			parent: this.mainWindow,
+			modal: true,
+			resizable: false,
+			webPreferences: {
+				nodeIntegration: true,
+				contextIsolation: false,
+			},
+			title: "Device Onboarding",
+		});
+		deviceOnboardingWindow.setMenu(null);
+		deviceOnboardingWindow.loadFile(path.join(__dirname, "..", "public", "deviceOnboarding.html"));
+		deviceOnboardingWindow.on("closed", () => {
+			deviceOnboardingWindow = null;
+		});
+	}
 
 	setupMainMenu() {
 		const menuTemplate = [

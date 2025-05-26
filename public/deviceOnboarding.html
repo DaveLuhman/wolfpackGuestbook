@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Device Onboarding</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h2 { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { width: 95%; padding: 8px; margin-bottom: 10px; }
+        button { padding: 8px 12px; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h2>Device Onboarding</h2>
+    <form id="device-onboarding-form">
+        <div>
+            <label for="server-url">Server URL:</label>
+            <input type="text" id="server-url" required>
+        </div>
+        <div>
+            <label for="friendly_name">Friendly Name:</label>
+            <input type="text" id="friendly_name" required>
+        </div>
+        <div>
+            <label for="location">Location:</label>
+            <input type="text" id="location" required>
+        </div>
+        <button type="submit">Submit</button>
+        <button type="button" id="standalone-deployment">Standalone Deployment</button>
+        <p class="error" id="error-message"></p>
+    </form>
+    <script>
+        const { ipcRenderer } = require('electron');
+    const form = document.getElementById('device-onboarding-form');
+        const errorMessage = document.getElementById('error-message');
+
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            errorMessage.textContent = '';
+            const serverUrl = document.getElementById('server-url').value.trim();
+            const friendlyName = document.getElementById('friendly_name').value.trim();
+            const location = document.getElementById('location').value.trim();
+
+            if (!serverUrl || !friendlyName || !location) {
+                errorMessage.textContent = 'All fields are required.';
+                return;
+            }
+
+            // Send the device onboarding data via IPC
+            ipcRenderer.send('device-onboarding-submit', { serverUrl, friendlyName, location });
+        });
+
+        ipcRenderer.on('device-onboarding-success', () => {
+            window.close();
+        });
+
+        ipcRenderer.on('device-onboarding-error', (event, error) => {
+            errorMessage.textContent = 'Error: ' + error;
+        });
+        document.getElementById('standalone-deployment').addEventListener('click', () => {
+            ipcRenderer.send('standalone-deployment');
+        });
+    </script>
+</body>
+</html>
