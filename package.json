@@ -1,6 +1,6 @@
 {
   "name": "wolfpack-guestbook",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "guest attendance tracking application",
   "main": "src/main.js",
   "type": "commonjs",
@@ -44,9 +44,6 @@
     "inquirer": "^10.1.8",
     "knex": "^3.1.0",
     "node-hid": "^3.1.0",
-    "wav": "^1.0.2"
-  },
-  "optionalDependencies": {
-    "speaker": "^0.5.2"
+    "play-sound": "^1.1.6"
   }
 }
