@@ -143,8 +143,11 @@ class WindowManager {
 
 		// Handle kiosk mode toggle
 		ipcMain.on("set-kiosk-mode", async (event, enabled) => {
-			const currentState = configManager.getKioskMode();
-			configManager.setKioskMode(!currentState);
+			if (typeof enabled === "boolean") {
+				configManager.setKioskMode(enabled);
+			} else {
+				console.warn("Invalid 'enabled' parameter for 'set-kiosk-mode' event.");
+			}
 		});
 	}
 
@@ -184,10 +187,10 @@ class WindowManager {
 						background: rgba(0, 0, 0, 0.1);
 						border-radius: 0 0 10px 0;
 					\`;
-					
+
 					let pressTimer;
 					let exitButton = null;
-					
+
 					const showExitButton = () => {
 						if (!exitButton) {
 							exitButton = document.createElement('div');
@@ -210,7 +213,7 @@ class WindowManager {
 								window.location.reload();
 							};
 							document.body.appendChild(exitButton);
-							
+
 							// Auto-hide after 5 seconds
 							setTimeout(() => {
 								if (exitButton && exitButton.parentNode) {
@@ -222,20 +225,20 @@ class WindowManager {
 					};
 
 					const startPress = () => {
-						pressTimer = setTimeout(showExitButton, 500); // Reduced to 500ms
+						pressTimer = setTimeout(showExitButton, 1000); // Set to 1 second to match README
 					};
 
 					const endPress = () => {
 						clearTimeout(pressTimer);
 					};
-					
+
 					// Add both touch and mouse events
 					exitArea.addEventListener('touchstart', startPress);
 					exitArea.addEventListener('touchend', endPress);
 					exitArea.addEventListener('mousedown', startPress);
 					exitArea.addEventListener('mouseup', endPress);
 					exitArea.addEventListener('mouseleave', endPress);
-					
+
 					document.body.appendChild(exitArea);
 				`);
 			});
