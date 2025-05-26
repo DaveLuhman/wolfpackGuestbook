@@ -3,7 +3,7 @@
 ## **1. Introduction**
 
 ### **Project Name**
-**Wolfpack Guestbook** - Version 1.0.7
+**Wolfpack Guestbook** - Version 1.0.8
 ### **Purpose**
 Wolfpack Guestbook is an Electron-based desktop application designed to track attendance volume as a fully-enclosed software solution.  It processes card swipe data, barcode scans, or virtual keystrokes to extract user identification information, optionally display the result to the screen, and store it to a local-only SQLite3 database. This can later be exported to CSV for further examination and analysis.
 
@@ -58,7 +58,8 @@ The application consists of the following main components:
 
 #### **soundManager.js**
 - Manages audio feedback for the application.
-- Handles loading and playing of success and error sounds.
+- Uses the <code>play-sound</code> package for cross-platform audio playback (Windows, macOS, Linux).
+- No platform-specific configuration or dependencies are required for sound.
 - Integrates with the configuration system for sound toggling.
 
 #### **index.html**
@@ -218,13 +219,7 @@ The application consists of the following main components:
    ```
 
 ### **Changelog**
-- **Version 1.0.0**: Initial release.
-- **Version 1.0.1**: Fixed an issue where the application would not display swipe data.
-- **Version 1.0.2**: Fixed an issue where the application would crash if no HID devices were detected.
-- **Version 1.0.3**: Fixed an issue where the application would not detect new HID devices.
-- **Version 1.0.4**: Added password protection to the viewer window.
-- **Version 1.0.5**: Fixed various minor bugs and improved error handling.
-- **Version 1.0.6**: Added manual entry feature.
+- **Version 1.0.8**: Migrated to cross-platform sound playback using <code>play-sound</code>. Removed all platform-specific sound code and dependencies.
 - **Version 1.0.7**: Added barcode scanner support for Symbol DS9208 devices and audio feedback for successful entries and errors.
 
 ### **Dependency List**

@@ -24,6 +24,33 @@ The Guestbook Application is an Electron-based application that records guest en
 - **Data Export**: Export guest records to a CSV file.
 - **Data Management**: Flush data and set/change viewer passwords.
 - **Secure Viewer**: View guest entries in a protected viewer window.
+- **Kiosk Mode**: Fullscreen, frameless mode optimized for touchscreen displays.
+
+## Kiosk Mode
+
+Kiosk mode provides a fullscreen, frameless interface optimized for touchscreen displays. This mode is particularly useful for public-facing kiosks where you want to prevent users from accessing the operating system.
+
+### Features:
+- Fullscreen display without window borders
+- Platform-specific defaults (enabled by default on ARM64 non-Mac devices)
+- Hidden exit mechanism for authorized users
+
+### How to Use Kiosk Mode:
+
+1. **Toggle Kiosk Mode**:
+   - Open the **File** menu in the application's menu bar
+   - Select **Kiosk Mode** to toggle the feature on/off
+   - The setting persists between application restarts
+
+2. **Exit Kiosk Mode**:
+   - Long-press (1 second) the top-left corner of the screen
+   - A semi-transparent "Exit Kiosk" button will appear
+   - Tap the button to exit kiosk mode
+   - The button automatically disappears after 5 seconds if not used
+
+### Viewer Window in Kiosk Mode:
+- When kiosk mode is enabled, the viewer window includes a floating close button in the top-right corner
+- The close button is semi-transparent and easily accessible for authorized users
 
 ## Manual Entry Feature
 
