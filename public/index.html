@@ -16,13 +16,20 @@
     <p id="swiper-status"></p>
     <p id="scanner-status"></p>
   </div>
-  <div id="hid-selector-parent">
+  <div id="swiper-hid-selector-parent" style="display: none;">
     <p>Select A HID MSR from the list</p>
-    <select id="hid-selector"></select>
-    <button type="submit" id="submit-hid">Submit</button>
+    <select id="swiper-hid-selector"></select>
+    <button type="submit" id="submit-swiper-hid">Submit</button>
+  </div>
+  <div id="barcode-hid-selector-parent" style="display: none;">
+    <p>Select A Barcode Scanner from the list</p>
+    <select id="barcode-hid-selector"></select>
+    <button type="submit" id="submit-barcode-hid">Submit</button>
   </div>
   <script>
     const { ipcRenderer } = require("electron");
+    ipcRenderer.send('renderer-ready');
+
     // open viewer window on clicking logo
     document.getElementById("logo-link").addEventListener("click", () => {
       ipcRenderer.send("open-viewer-window");
@@ -101,18 +108,36 @@
       entryData.innerHTML = `<p>Swipe your card, scan your barcode, or press the button to sign the guestbook...</p>`;
     }
 
-    ipcRenderer.on('select-hid', (event, data) => {
-      console.log('Received select-hid event with data:', data);
+    ipcRenderer.on('select-swiper-hid', (event, data) => {
+      console.log('Received select-swiper-hid event with data:', data);
       const hidSelectorOptions = data.map(option => `<option value="${option.path}">${option.manufacturer} ${option.product}</option>`);
-      document.getElementById("hid-selector").innerHTML = hidSelectorOptions.join('\n');
-      document.getElementById("hid-selector-parent").style.display = "block";
+      document.getElementById("swiper-hid-selector").innerHTML = hidSelectorOptions.join('\n');
+      document.getElementById("logo-link").style.display = "none";
+      document.getElementById("swiper-hid-selector-parent").style.display = "block";
     });
 
-    document.getElementById("submit-hid").addEventListener("click", () => {
-      const hidSelection = document.getElementById('hid-selector').value;
+    ipcRenderer.on('select-barcode-hid', (event, data) => {
+      console.log('Received select-barcode-hid event with data:', data);
+      const barcodeSelectorOptions = data.map(option => `<option value="${option.path}">${option.manufacturer} ${option.product}</option>`);
+      document.getElementById("barcode-hid-selector").innerHTML = barcodeSelectorOptions.join('\n');
+      document.getElementById("logo-link").style.display = "none";
+      document.getElementById("barcode-hid-selector-parent").style.display = "block";
+    });
+
+    document.getElementById("submit-swiper-hid").addEventListener("click", () => {
+      const hidSelection = document.getElementById('swiper-hid-selector').value;
       console.log('Submitting HID selection:', hidSelection);
-      ipcRenderer.send('hid-selection', hidSelection);
-      document.getElementById("hid-selector-parent").style.display = "none";
+      ipcRenderer.send('swiper-hid-selection', hidSelection);
+      document.getElementById("swiper-hid-selector-parent").style.display = "none";
+      document.getElementById("logo-link").style.display = "block";
+    });
+
+    document.getElementById("submit-barcode-hid").addEventListener("click", () => {
+      const barcodeHidSelection = document.getElementById('barcode-hid-selector').value;
+      console.log('Submitting Barcode HID selection:', barcodeHidSelection);
+      ipcRenderer.send('barcode-hid-selection', barcodeHidSelection);
+      document.getElementById("barcode-hid-selector-parent").style.display = "none";
+      document.getElementById("logo-link").style.display = "block";
     });
   </script>
 </body>

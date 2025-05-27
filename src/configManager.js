@@ -1,8 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { BrowserWindow, ipcMain, app } = require('electron');
-const os = require('os');
-const EventEmitter = require('events');
+const os = require('node:os');
+const EventEmitter = require('node:events');
 
 class ConfigManager extends EventEmitter {
     constructor() {
@@ -33,7 +33,9 @@ class ConfigManager extends EventEmitter {
             password: null,
             kiosk: {
                 enabled: isARM64 && !isDarwin // Enable by default only on ARM64 non-Mac devices
-            }
+            },
+            deploymentType: "standalone",
+            serverUrl: null
         };
 
         // Merge default config with existing config, preserving any existing values
@@ -52,6 +54,10 @@ class ConfigManager extends EventEmitter {
                 ...defaultConfig.deploymentType,
                 ...(this.config.deploymentType || null)
             },
+            serverUrl: {
+                ...defaultConfig.serverUrl,
+                ...(this.config.serverUrl || null)
+            }
         };
 
         // Save the merged config
@@ -130,6 +136,57 @@ class ConfigManager extends EventEmitter {
         return this.config.deploymentType;
     }
 
+    setDeploymentType(deploymentType) {
+        this.config.deploymentType = deploymentType;
+        this.saveConfig();
+    }
+
+    async checkDeploymentType() {
+        if (this.config.deploymentType === null) {
+            const deploymentType = await this.promptForDeploymentType();
+            this.setDeploymentType(deploymentType);
+        }
+    }
+    promptForDeploymentType() {
+        return new Promise((resolve) => {
+            windowManager.promptForDeploymentType(resolve);
+        });
+    }
+
+    configExists() {
+        return fs.existsSync(this.configPath);
+    }
+
+    getServerUrl() {
+        return this.config.serverUrl;
+    }
+
+    getServerToken() {
+        return this.config.serverToken;
+    }
+
+    setServerToken(token) {
+        this.config.serverToken = token;
+        this.saveConfig();
+    }
+
+    getDeviceId() {
+        return this.config.deviceId;
+    }
+
+    setDeviceId(deviceId) {
+        this.config.deviceId = deviceId;
+        this.saveConfig();
+    }
+
+    getDeviceLocation() {
+        return this.config.deviceLocation;
+    }
+
+    setDeviceLocation(deviceLocation) {
+        this.config.deviceLocation = deviceLocation;
+        this.saveConfig();
+    }
 }
 
 module.exports = new ConfigManager();

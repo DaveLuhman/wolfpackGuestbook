@@ -28,13 +28,17 @@
             <input type="text" id="location" required>
         </div>
         <button type="submit">Submit</button>
-        <button type="button" id="standalone-deployment">Standalone Deployment</button>
+        <button type="button" id="standalone-deployment-button">Standalone Deployment</button>
         <p class="error" id="error-message"></p>
     </form>
     <script>
         const { ipcRenderer } = require('electron');
     const form = document.getElementById('device-onboarding-form');
         const errorMessage = document.getElementById('error-message');
+
+        document.getElementById('standalone-deployment').addEventListener('click', () => {
+            ipcRenderer.send('standalone-deployment');
+        });
 
         form.addEventListener('submit', (event) => {
             event.preventDefault();
@@ -47,7 +51,6 @@
                 errorMessage.textContent = 'All fields are required.';
                 return;
             }
-
             // Send the device onboarding data via IPC
             ipcRenderer.send('device-onboarding-submit', { serverUrl, friendlyName, location });
         });
@@ -58,9 +61,6 @@
 
         ipcRenderer.on('device-onboarding-error', (event, error) => {
             errorMessage.textContent = 'Error: ' + error;
-        });
-        document.getElementById('standalone-deployment').addEventListener('click', () => {
-            ipcRenderer.send('standalone-deployment');
         });
     </script>
 </body>

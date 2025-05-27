@@ -8,7 +8,7 @@ const {
 const path = require("node:path");
 const fs = require("node:fs");
 const configManager = require("./configManager");
-const GuestEntry = require("./GuestEntry");
+const GuestEntry = require("./lib/standalone/GuestEntry");
 const { createObjectCsvWriter } = require("csv-writer");
 
 class WindowManager {
@@ -172,6 +172,11 @@ class WindowManager {
 			this.mainWindow = null;
 		});
 
+		// Open DevTools on launch
+		this.mainWindow.webContents.once('did-finish-load', () => {
+			this.mainWindow.webContents.openDevTools();
+		});
+
 		// Add hidden exit button for kiosk mode
 		if (configManager.getKioskMode()) {
 			this.mainWindow.webContents.on('did-finish-load', () => {
@@ -314,7 +319,7 @@ class WindowManager {
 			manualEntryWindow = null;
 		});
 	}
-	createDeviceOnboardingWindow() {
+	async promptForDeploymentType() {
 		let deviceOnboardingWindow = new BrowserWindow({
 			width: 400,
 			height: 300,
