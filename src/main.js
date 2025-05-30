@@ -174,7 +174,7 @@ app.on("ready", async () => {
 
 	try {
 		await connectDB;
-		console.log("Database connected successfully.");
+		console.log("Local SQLite database connected successfully.");
 	} catch (err) {
 		console.error("Failed to connect to the database:", err.message);
 		app.quit();
