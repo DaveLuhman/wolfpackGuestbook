@@ -3,6 +3,7 @@ const path = require('node:path');
 const { BrowserWindow, ipcMain, app } = require('electron');
 const os = require('node:os');
 const EventEmitter = require('node:events');
+const { doesNotMatch } = require('node:assert');
 
 class ConfigManager extends EventEmitter {
     constructor() {
@@ -34,8 +35,7 @@ class ConfigManager extends EventEmitter {
             kiosk: {
                 enabled: isARM64 && !isDarwin // Enable by default only on ARM64 non-Mac devices
             },
-            deploymentType: "standalone",
-            serverUrl: null
+            serverUrl: null,
         };
 
         // Merge default config with existing config, preserving any existing values
@@ -49,10 +49,6 @@ class ConfigManager extends EventEmitter {
             kiosk: {
                 ...defaultConfig.kiosk,
                 ...(this.config.kiosk || {})
-            },
-            deploymentType: {
-                ...defaultConfig.deploymentType,
-                ...(this.config.deploymentType || null)
             },
             serverUrl: {
                 ...defaultConfig.serverUrl,
@@ -138,6 +134,10 @@ class ConfigManager extends EventEmitter {
 
     setDeploymentType(deploymentType) {
         this.config.deploymentType = deploymentType;
+        const deployementTypes = ['standalone', 'client-server'];
+        if (!deployementTypes.includes(deploymentType)) {
+            throw new Error('Invalid deployment type');
+        }
         this.saveConfig();
     }
 
@@ -159,6 +159,18 @@ class ConfigManager extends EventEmitter {
 
     getServerUrl() {
         return this.config.serverUrl;
+    }
+    validateServerUrl(serverUrl) {
+        // get the first 4 characters of the serverUrl
+        const firstFourChars = serverUrl.substring(0, 4);
+        if (firstFourChars !== 'http' ) {
+            throw new Error('Invalid server URL');
+        }
+    }
+    setServerUrl(serverUrl) {
+        this.validateServerUrl(serverUrl);
+        this.config.serverUrl = serverUrl;
+        this.saveConfig();
     }
 
     getServerToken() {
@@ -185,6 +197,15 @@ class ConfigManager extends EventEmitter {
 
     setDeviceLocation(deviceLocation) {
         this.config.deviceLocation = deviceLocation;
+        this.saveConfig();
+    }
+
+    getDeviceFriendlyName() {
+        return this.config.deviceFriendlyName;
+    }
+
+    setDeviceFriendlyName(deviceFriendlyName) {
+        this.config.deviceFriendlyName = deviceFriendlyName;
         this.saveConfig();
     }
 }

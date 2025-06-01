@@ -35,36 +35,34 @@ function getPrimaryMacAddress() {
   throw new Error('No valid network interface found.');
 }
 function computeDeviceId() {
-    let macAddress = getPrimaryMacAddress();
-    macAddress = macAddress.replace(/:/g, '');
-    // get the last 6 characters and return it
-    return macAddress.slice(-6);
+  let macAddress = getPrimaryMacAddress();
+  macAddress = macAddress.replace(/:/g, '');
+  // get the last 6 characters and return it
+  return macAddress.slice(-6);
 }
 
 async function registerThisDevice(deviceName, deviceLocation) {
-    const deviceId = computeDeviceId();
-    const serverUrl = configManager.getServerUrl();
-    const headers = {
-        'Content-Type': 'application/json',
-    }
-    const device = {
-        id: deviceId,
-        name: deviceName || deviceId,
-        location: deviceLocation || 'Unknown'
-    }
-    const body = device;
-    const response = await axios.post(`${serverUrl}/devices/create`, body, { headers });
-    return response.data;
+  const deviceId = computeDeviceId();
+  const serverUrl = configManager.getServerUrl();
+  const headers = {
+    'Content-Type': 'application/json',
+  }
+  const device = {
+    id: deviceId,
+    name: deviceName || deviceId,
+    location: deviceLocation || 'Unknown'
+  }
+  const body = device;
+  const response = await axios.post(`${serverUrl}/api/v1/devices/register`, body, { headers });
+  return response.data;
 }
 async function deviceHeartbeat() {
   const serverUrl = configManager.getServerUrl();
   const headers = {
     'Content-Type': 'application/json',
   }
-  const device = {
-    id: configManager.getDeviceId(),
-  }
-  const response = await axios.post(`${serverUrl}/devices/heartbeat`, device, { headers });
+  const deviceId = configManager.getDeviceId();
+  const response = await axios.post(`${serverUrl}/api/v1/devices/heartbeat?deviceId=${deviceId}`, { headers });
   return response.data;
 }
-module.exports = { registerThisDevice, deviceHeartbeat };
+module.exports = [registerThisDevice, deviceHeartbeat];

@@ -1,7 +1,7 @@
 const axios = require('axios');
 const configManager = require('../../configManager');
 
-export async function submitEntry(onecard, name) {
+const submitEntry = async (onecard, name) => {
 
     const rootServerUrl = configManager.getServerUrl();
     const serverUrl = `${rootServerUrl}/api/entries/submit`;
@@ -18,4 +18,6 @@ export async function submitEntry(onecard, name) {
       throw error;
     }
     const response = await axios.post(serverUrl, { onecard, name, entryTime }, { headers });
+    return response.data;
 }
+module.exports = [submitEntry]; 

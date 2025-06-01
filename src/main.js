@@ -18,7 +18,7 @@ const {
 const configManager = require('./configManager');
 const windowManager = require('./windowManager.js');
 const soundManager = require('./soundManager.js');
-const { registerThisDevice } = require("./lib/server/devices.js");
+const [registerThisDevice, deviceHeartbeat] = require("./lib/server/devices.js");
 
 
 const onSwipe = async (error, onecardData) => {
@@ -157,19 +157,34 @@ const guestButtonPressCallback = async () => {
 app.on("ready", async () => {
 	windowManager.createMainWindow();
 
-	// First run: prompt for deployment type
-	if (!configManager.configExists()) {
-		Promise.resolve(windowManager.promptForDeploymentType()).then(async (deploymentType) => {
-			if(deploymentType === 'client-server') {
-				const response = await registerThisDevice();
-				configManager.setServerToken(response.uuid);
-				configManager.setDeviceId(response.id);
-				configManager.setDeviceLocation(response.location);
-			}
-			configManager.setDeploymentType(deploymentType);
+	ipcMain.on('standalone-deployment-selected', () => {
+		configManager.setDeploymentType('standalone');
+		windowManager.deviceOnboardingWindow = null;
+	});
 
-		});
-		return;
+	ipcMain.on('device-onboarding-submit', async (event, { serverUrl, friendlyName, location }) => {
+		try {
+			// Save the config (or do registration, etc.)
+			configManager.setServerUrl(serverUrl);
+			configManager.setDeviceFriendlyName(friendlyName);
+			configManager.setDeviceLocation(location);
+			configManager.setDeploymentType('client-server');
+			// You may want to call registerThisDevice() here as well
+			const response = await registerThisDevice();
+			configManager.setServerToken(response.uuid);
+			configManager.setDeviceId(response.id);
+
+			event.sender.send('device-onboarding-success');
+			if (windowManager.deviceOnboardingWindow) {
+				windowManager.deviceOnboardingWindow.close();
+			}
+		} catch (err) {
+			event.sender.send('device-onboarding-error', err.message);
+		}
+	});
+	// First run: prompt for deployment type
+	if (!configManager.getDeploymentType()) {
+		windowManager.promptForDeploymentType();
 	}
 
 	try {
@@ -190,9 +205,13 @@ app.on("ready", async () => {
 		initializeSwiper();
 		initializeBarcodeScanner();
 	});
-	ipcMain.on('standalone-deployment-selected', () => {
+
+	ipcMain.on('standalone-deployment', (event) => {
 		configManager.setDeploymentType('standalone');
-		windowManager.deviceOnboardingWindow = null;
+		event.sender.send('device-onboarding-success');
+		if (windowManager.deviceOnboardingWindow) {
+			windowManager.deviceOnboardingWindow.close();
+		}
 	});
 });
 

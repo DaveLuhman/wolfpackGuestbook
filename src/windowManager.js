@@ -157,8 +157,7 @@ class WindowManager {
 			height: 600,
 			webPreferences: {
 				nodeIntegration: true,
-				contextIsolation: false,
-				devTools: true
+				contextIsolation: false
 			},
 			title: "Guestbook",
 			icon: path.join(__dirname, "..", "public", "img", "favicon.ico"),
@@ -320,22 +319,29 @@ class WindowManager {
 		});
 	}
 	async promptForDeploymentType() {
-		let deviceOnboardingWindow = new BrowserWindow({
+		this.deviceOnboardingWindow = new BrowserWindow({
 			width: 400,
-			height: 300,
+			height: 400,
 			parent: this.mainWindow,
 			modal: true,
 			resizable: false,
 			webPreferences: {
 				nodeIntegration: true,
 				contextIsolation: false,
+				devTools: true
 			},
+			frame: false,
 			title: "Device Onboarding",
 		});
-		deviceOnboardingWindow.setMenu(null);
-		deviceOnboardingWindow.loadFile(path.join(__dirname, "..", "public", "deviceOnboarding.html"));
-		deviceOnboardingWindow.on("closed", () => {
-			deviceOnboardingWindow = null;
+		this.deviceOnboardingWindow.setMenu(null);
+		this.deviceOnboardingWindow.loadFile(path.join(__dirname, "..", "public", "deviceOnboarding.html"));
+		this.deviceOnboardingWindow.on("ready-to-show", () => {
+			this.deviceOnboardingWindow.show();
+			this.deviceOnboardingWindow.focus();
+			this.deviceOnboardingWindow.webContents.openDevTools();
+		});
+		this.deviceOnboardingWindow.on("closed", () => {
+			this.deviceOnboardingWindow = null;
 		});
 	}
 

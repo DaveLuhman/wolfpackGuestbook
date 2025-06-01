@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@electron-forge/maker-wix": "^7.4.0",
+    "axios": "^1.9.0",
     "better-sqlite3": "^11.3.0",
     "csv-writer": "^1.6.0",
     "dayjs": "^1.11.12",
