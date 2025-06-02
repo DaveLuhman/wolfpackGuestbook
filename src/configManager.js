@@ -3,7 +3,7 @@ const path = require('node:path');
 const { BrowserWindow, ipcMain, app } = require('electron');
 const os = require('node:os');
 const EventEmitter = require('node:events');
-const { doesNotMatch } = require('node:assert');
+
 
 class ConfigManager extends EventEmitter {
     constructor() {
@@ -109,13 +109,6 @@ class ConfigManager extends EventEmitter {
     setPassword(password) {
         this.config.password = password;
         this.saveConfig();
-    }
-
-    async checkPasswordConfig() {
-        if (!this.config.password && this.config.password !== "") {
-            const password = await this.promptForPassword();
-            this.setPassword(password || "");
-        }
     }
 
     // Kiosk mode configuration

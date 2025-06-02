@@ -58,8 +58,10 @@ async function registerThisDevice(deviceName, deviceLocation) {
 }
 async function deviceHeartbeat() {
   const serverUrl = configManager.getServerUrl();
+  const token = configManager.getServerToken();
   const headers = {
     'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
   }
   const deviceId = configManager.getDeviceId();
   const response = await axios.post(`${serverUrl}/api/v1/devices/heartbeat?deviceId=${deviceId}`, { headers });

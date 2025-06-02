@@ -19,11 +19,6 @@ class WindowManager {
 			path.join(__dirname, "..", "public", "img", "favicon-32.png"),
 		);
 		this.setupIPC();
-		configManager.on('configChanged', () => {
-			if (this.mainWindow) {
-				this.mainWindow.reload();
-			}
-		});
 	}
 
 	setupIPC() {

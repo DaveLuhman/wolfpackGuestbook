@@ -19,8 +19,11 @@ const configManager = require('./configManager');
 const windowManager = require('./windowManager.js');
 const soundManager = require('./soundManager.js');
 const [registerThisDevice, deviceHeartbeat] = require("./lib/server/devices.js");
+const { submitEntry } = require("./lib/server/entries.js");
+const {CronJob} = require('cron');
 
 
+// HANDLER FUNCTIONS
 const onSwipe = async (error, onecardData) => {
 	if (error) {
 		console.error("Error during swipe:", error.message);
@@ -37,6 +40,9 @@ const onSwipe = async (error, onecardData) => {
 			name,
 			onecard,
 		});
+		if (configManager.getDeploymentType() === 'client-server') {
+			await submitEntry(onecard, name);
+		}
 		soundManager.playSuccess();
 	} catch (dbError) {
 		console.error("Error handling entry:", dbError.message);
@@ -74,7 +80,36 @@ const onBarcodeScan = async (error, barcodeData) => {
 		soundManager.playError();
 	}
 };
+// GUEST BUTTON HANDLER
+const guestButtonPressCallback = async () => {
+	let debounceTimeout;
+	const DEBOUNCE_TIME = 1500; // 1500ms or 1.5 seconds
+	if (debounceTimeout) {
+		return; // Ignore the press if debounce is active
+	}
 
+	debounceTimeout = setTimeout(() => {
+		debounceTimeout = null; // Reset the timeout after the period
+	}, DEBOUNCE_TIME);
+	try {
+		await GuestEntry.createAnonymousEntry();
+		windowManager.getMainWindow().webContents.send("guest-entry", {
+			name: "Guest Visitor",
+			onecard: null,
+			entryTime: new Date().toLocaleDateString(),
+		});
+		soundManager.playSuccess();
+	} catch (error) {
+		console.error("Error handling entry:", error.message);
+		windowManager.getMainWindow().webContents.send(
+			"entry-error",
+			`Database error: ${error.message}`,
+		);
+		soundManager.playError();
+	}
+};
+
+// INIT FUNCTIONS
 async function initializeSwiper() {
 	let HIDPath = getMagtekSwiper();
 	if (Array.isArray(HIDPath)) {
@@ -97,6 +132,7 @@ async function initializeSwiper() {
 		}
 	}
 }
+
 
 async function initializeBarcodeScanner() {
 	console.log("Looking for Barcode Scanner or other HID devices...");
@@ -126,37 +162,12 @@ async function initializeBarcodeScanner() {
 	}
 }
 
-let debounceTimeout;
-const DEBOUNCE_TIME = 1500; // 1500ms or 1.5 seconds
-const guestButtonPressCallback = async () => {
-	if (debounceTimeout) {
-		return; // Ignore the press if debounce is active
-	}
 
-	debounceTimeout = setTimeout(() => {
-		debounceTimeout = null; // Reset the timeout after the period
-	}, DEBOUNCE_TIME);
-	try {
-		await GuestEntry.createAnonymousEntry();
-		windowManager.getMainWindow().webContents.send("guest-entry", {
-			name: "Guest Visitor",
-			onecard: null,
-			entryTime: new Date().toLocaleDateString(),
-		});
-		soundManager.playSuccess();
-	} catch (error) {
-		console.error("Error handling entry:", error.message);
-		windowManager.getMainWindow().webContents.send(
-			"entry-error",
-			`Database error: ${error.message}`,
-		);
-		soundManager.playError();
-	}
-};
-
+// MAIN APP INIT
 app.on("ready", async () => {
 	windowManager.createMainWindow();
 
+	// DEVICE ONBOARDING HANDLERs
 	ipcMain.on('standalone-deployment-selected', () => {
 		configManager.setDeploymentType('standalone');
 		windowManager.deviceOnboardingWindow = null;
@@ -195,10 +206,9 @@ app.on("ready", async () => {
 		app.quit();
 	}
 
-	await configManager.checkPasswordConfig();
-
 	globalShortcut.register("F24", guestButtonPressCallback);
 
+	// INITIALIZE HID DEVICES
 	ipcMain.on('renderer-ready', () => {
 		// Now safe to send select-swiper-hid and select-barcode-hid
 		// (You may need to store the HIDPath values until this fires)
@@ -206,15 +216,14 @@ app.on("ready", async () => {
 		initializeBarcodeScanner();
 	});
 
-	ipcMain.on('standalone-deployment', (event) => {
-		configManager.setDeploymentType('standalone');
-		event.sender.send('device-onboarding-success');
-		if (windowManager.deviceOnboardingWindow) {
-			windowManager.deviceOnboardingWindow.close();
-		}
-	});
+	if (configManager.getDeploymentType() === 'client-server') {
+		const heartbeatCron =  CronJob.from('*/10 * * * *', deviceHeartbeat)
+		heartbeatCron.start();
+	}
+
 });
 
+// WINDOW ALL CLOSED HANDLER
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") {
 		globalShortcut.unregisterAll();
@@ -222,12 +231,14 @@ app.on("window-all-closed", () => {
 	}
 });
 
+// WINDOW ACTIVATE HANDLER
 app.on("activate", () => {
 	if (!windowManager.getMainWindow()) {
 		windowManager.createMainWindow();
 	}
 });
 
+// WILL QUIT HANDLER
 app.on("will-quit", () => {
 	globalShortcut.unregisterAll();
 	closeSwiper();
