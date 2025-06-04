@@ -31,7 +31,22 @@ const GuestEntry = {
   },
   async flush() {
     return await db('GuestEntry').del();
+  },
+  
+  async syncPending(uploadFn) {
+    // uploadFn should be a function that takes a record and returns a Promise with server_id
+    const pending = await db('GuestEntry').where({ sync_status: 'pending' });
+    for (const entry of pending) {
+      if (entry.server_id) { continue }; // skip if already has server_id
+      try {
+        const server_id = await uploadFn(entry);
+        await db('GuestEntry').where({ id: entry.id }).update({ sync_status: 'synced', server_id });
+      } catch (err) {
+        console.error('Sync failed for entry', entry.id, err.message);
+        // Optionally, add error handling or retry logic here
+      }
+    }
   }
-};
+}
 
 module.exports = GuestEntry;
