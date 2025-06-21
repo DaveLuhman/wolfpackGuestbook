@@ -135,6 +135,7 @@ async function initializeSwiper() {
                         console.log("MagTek Swiper detected, starting swiper...");
                         await startListeningToSwiper(HIDPath, onSwipe);
                 } catch (error) {
+
 			console.error("Error starting swiper:", error.message);
 		}
 	}
@@ -171,6 +172,7 @@ async function initializeBarcodeScanner() {
                         console.log("Barcode Scanner detected, starting scanner...");
                         await startListeningToScanner(HIDPath, onBarcodeScan);
                 } catch (error) {
+
 			console.error("Error starting barcode scanner:", error.message);
 		}
 	}
@@ -212,6 +214,7 @@ app.on("ready", async () => {
                         event.sender.send('device-onboarding-error', err.message);
                 }
         });
+
 	// First run: prompt for deployment type
 	if (!configManager.getDeploymentType()) {
 		windowManager.promptForDeploymentType();

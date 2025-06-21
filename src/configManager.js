@@ -40,6 +40,7 @@ class ConfigManager extends EventEmitter {
                 swiper: false,
                 barcode: false,
             },
+
         };
 
         // Merge default config with existing config, preserving any existing values
@@ -59,6 +60,7 @@ class ConfigManager extends EventEmitter {
                 ...(this.config.missingDevices || {})
             },
             serverUrl: this.config.serverUrl || defaultConfig.serverUrl,
+
         };
 
         // Save the merged config
@@ -228,6 +230,7 @@ class ConfigManager extends EventEmitter {
             ...this.config.missingDevices,
             barcode: state,
         };
+
         this.saveConfig();
     }
 }
