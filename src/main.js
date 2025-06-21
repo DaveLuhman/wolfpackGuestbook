@@ -1,16 +1,10 @@
 const {
 	app,
-	BrowserWindow,
 	ipcMain,
-	nativeImage,
-	dialog,
 	globalShortcut,
-	Menu,
 } = require("electron");
-const path = require("node:path");
-const fs = require('node:fs');
 const connectDB = require("./db.js");
-const GuestEntry = require("./GuestEntry.js");
+const GuestEntry = require("./lib/standalone/GuestEntry.js");
 const {
 	getMagtekSwiper,
 	startListeningToSwiper,
@@ -21,15 +15,15 @@ const {
 	startListeningToScanner,
 	closeScanner,
 } = require("./barcodeScanner.js");
-const { createObjectCsvWriter } = require("csv-writer");
 const configManager = require('./configManager');
 const windowManager = require('./windowManager.js');
 const soundManager = require('./soundManager.js');
+const [registerThisDevice, deviceHeartbeat] = require("./lib/server/devices.js");
+const { submitEntry } = require("./lib/server/entries.js");
+const {CronJob} = require('cron');
 
-const appIcon = nativeImage.createFromPath(
-	path.join(__dirname, "..", "public", "img", "favicon-32.png"),
-);
 
+// HANDLER FUNCTIONS
 const onSwipe = async (error, onecardData) => {
 	if (error) {
 		console.error("Error during swipe:", error.message);
@@ -46,6 +40,9 @@ const onSwipe = async (error, onecardData) => {
 			name,
 			onecard,
 		});
+		if (configManager.getDeploymentType() === 'client-server') {
+			await submitEntry(onecard, name);
+		}
 		soundManager.playSuccess();
 	} catch (dbError) {
 		console.error("Error handling entry:", dbError.message);
@@ -83,40 +80,11 @@ const onBarcodeScan = async (error, barcodeData) => {
 		soundManager.playError();
 	}
 };
-
-async function initializeSwiper() {
-	console.log("Looking for Mag-Tek Swiper or other HID devices...");
-	let HIDPath = await getMagtekSwiper();
-	if (Array.isArray(HIDPath)) {
-		console.log(
-			"Multiple HID devices detected, sending select-hid event to renderer.",
-		);
-		windowManager.getMainWindow().webContents.send("select-hid", HIDPath);
-		ipcMain.once("hid-selection", async (event, selectedPath) => {
-			console.log("HID device selected:", selectedPath);
-			HIDPath = selectedPath;
-			try {
-				windowManager.getMainWindow().setSize(400, 500);
-				await startListeningToSwiper(HIDPath, onSwipe);
-			} catch (error) {
-				console.error("Error starting swiper after selection:", error.message);
-			}
-		});
-	} else {
-		try {
-			console.log("MagTek Swiper detected, starting swiper...");
-			await startListeningToSwiper(HIDPath, onSwipe);
-		} catch (error) {
-			console.error("Error starting swiper:", error.message);
-		}
-	}
-}
-
-let debounceTimeout;
-const DEBOUNCE_TIME = 1500; // 1500ms or 1.5 seconds
+// GUEST BUTTON HANDLER
 const guestButtonPressCallback = async () => {
+	let debounceTimeout;
+	const DEBOUNCE_TIME = 1500; // 1500ms or 1.5 seconds
 	if (debounceTimeout) {
-		console.log("F24 press ignored due to active timeout.");
 		return; // Ignore the press if debounce is active
 	}
 
@@ -141,34 +109,140 @@ const guestButtonPressCallback = async () => {
 	}
 };
 
+// INIT FUNCTIONS
+async function initializeSwiper() {
+        if (configManager.isSwiperMissing()) {
+                console.log("Swiper marked as missing; skipping initialization.");
+                return;
+        }
+        let HIDPath = getMagtekSwiper();
+        if (Array.isArray(HIDPath)) {
+                windowManager.getMainWindow().webContents.send("select-swiper-hid", HIDPath);
+                ipcMain.once("swiper-hid-selection", async (event, selectedPath) => {
+                        HIDPath = selectedPath;
+                        try {
+                                windowManager.getMainWindow().setSize(400, 500);
+                                await startListeningToSwiper(HIDPath, onSwipe);
+                        } catch (error) {
+                                console.error("Error starting swiper after selection:", error.message);
+                        }
+                });
+                ipcMain.once('skip-swiper-selection', () => {
+                        configManager.setSwiperMissing(true);
+                });
+        } else {
+                try {
+                        console.log("MagTek Swiper detected, starting swiper...");
+                        await startListeningToSwiper(HIDPath, onSwipe);
+                } catch (error) {
+			console.error("Error starting swiper:", error.message);
+		}
+	}
+}
+
+
+async function initializeBarcodeScanner() {
+        if (configManager.isBarcodeMissing()) {
+                console.log("Barcode scanner marked as missing; skipping initialization.");
+                return;
+        }
+        console.log("Looking for Barcode Scanner or other HID devices...");
+        let HIDPath = getBarcodeScanner();
+        if (Array.isArray(HIDPath)) {
+                console.log(
+                        "Multiple HID devices detected, sending select-barcode-hid event to renderer.",
+                );
+                windowManager.getMainWindow().webContents.send("select-barcode-hid", HIDPath);
+                ipcMain.once("barcode-hid-selection", async (event, selectedPath) => {
+                        console.log("Barcode HID device selected:", selectedPath);
+                        HIDPath = selectedPath;
+                        try {
+                                windowManager.getMainWindow().setSize(400, 500);
+                                await startListeningToScanner(HIDPath, onBarcodeScan);
+                        } catch (error) {
+                                console.error("Error starting barcode scanner after selection:", error.message);
+                        }
+                });
+                ipcMain.once('skip-barcode-selection', () => {
+                        configManager.setBarcodeMissing(true);
+                });
+        } else {
+                try {
+                        console.log("Barcode Scanner detected, starting scanner...");
+                        await startListeningToScanner(HIDPath, onBarcodeScan);
+                } catch (error) {
+			console.error("Error starting barcode scanner:", error.message);
+		}
+	}
+}
+
+
+// MAIN APP INIT
 app.on("ready", async () => {
 	windowManager.createMainWindow();
 
+	// DEVICE ONBOARDING HANDLERs
+        ipcMain.on('standalone-deployment', () => {
+                configManager.setDeploymentType('standalone');
+                if (windowManager.deviceOnboardingWindow) {
+                        windowManager.deviceOnboardingWindow.close();
+                }
+                initializeSwiper();
+                initializeBarcodeScanner();
+        });
+
+        ipcMain.on('device-onboarding-submit', async (event, { serverUrl, friendlyName, location }) => {
+                try {
+                        // Save the config (or do registration, etc.)
+                        configManager.setServerUrl(serverUrl);
+                        configManager.setDeviceFriendlyName(friendlyName);
+                        configManager.setDeviceLocation(location);
+                        configManager.setDeploymentType('client-server');
+                        const response = await registerThisDevice();
+                        configManager.setServerToken(response.uuid);
+                        configManager.setDeviceId(response.id);
+
+                        event.sender.send('device-onboarding-success');
+                        if (windowManager.deviceOnboardingWindow) {
+                                windowManager.deviceOnboardingWindow.close();
+                        }
+                        initializeSwiper();
+                        initializeBarcodeScanner();
+                } catch (err) {
+                        event.sender.send('device-onboarding-error', err.message);
+                }
+        });
+	// First run: prompt for deployment type
+	if (!configManager.getDeploymentType()) {
+		windowManager.promptForDeploymentType();
+	}
+
 	try {
 		await connectDB;
-		console.log("Database connected successfully.");
+		console.log("Local SQLite database connected successfully.");
 	} catch (err) {
 		console.error("Failed to connect to the database:", err.message);
 		app.quit();
 	}
 
-	await configManager.checkPasswordConfig();
-
 	globalShortcut.register("F24", guestButtonPressCallback);
 
-	console.log("Looking for Mag-Tek Swiper or other HID devices...");
-	initializeSwiper();
+	// INITIALIZE HID DEVICES
+        ipcMain.on('renderer-ready', () => {
+                if (configManager.getDeploymentType()) {
+                        initializeSwiper();
+                        initializeBarcodeScanner();
+                }
+        });
 
-	// Initialize barcode scanner
-	try {
-		const scannerDevice = getBarcodeScanner();
-		console.log("Symbol DS9208 scanner found, initializing...");
-		startListeningToScanner(onBarcodeScan);
-	} catch (error) {
-		console.log("No Symbol DS9208 scanner found or error initializing:", error.message);
+	if (configManager.getDeploymentType() === 'client-server') {
+		const heartbeatCron =  CronJob.from('*/10 * * * *', deviceHeartbeat)
+		heartbeatCron.start();
 	}
+
 });
 
+// WINDOW ALL CLOSED HANDLER
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") {
 		globalShortcut.unregisterAll();
@@ -176,12 +250,14 @@ app.on("window-all-closed", () => {
 	}
 });
 
+// WINDOW ACTIVATE HANDLER
 app.on("activate", () => {
 	if (!windowManager.getMainWindow()) {
 		windowManager.createMainWindow();
 	}
 });
 
+// WILL QUIT HANDLER
 app.on("will-quit", () => {
 	globalShortcut.unregisterAll();
 	closeSwiper();

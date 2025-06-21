@@ -21,6 +21,7 @@ const parseBarcodeData = (data) => {
 
 const getBarcodeScanner = () => {
 	try {
+		let devicePath
 		const devices = HID.devices();
 		const scannerDevice = devices.find(
 			(device) =>
@@ -29,21 +30,22 @@ const getBarcodeScanner = () => {
 					device.product?.includes("Bar Code Scanner")),
 		);
 
-		if (!scannerDevice) {
-			throw new Error("Symbol DS9208 scanner not found");
+		if (scannerDevice) {
+			devicePath = scannerDevice.path;
+		} else {
+			devicePath = devices;
 		}
 
-		return scannerDevice;
+		return devicePath;
 	} catch (error) {
 		console.error("Error finding barcode scanner:", error.message);
 		throw error;
 	}
 };
 
-const startListeningToScanner = (callback) => {
+const startListeningToScanner = (path, callback) => {
 	try {
-		const scannerDevice = getBarcodeScanner();
-		scanner = new HID.HID(scannerDevice.path);
+		scanner = new HID.HID(path);
 
 		scanner.on("data", (dataBuffer) => {
 			try {

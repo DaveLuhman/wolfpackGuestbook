@@ -66,7 +66,8 @@ A Manual Entry feature is available to ensure flexibility in recording guest ent
 3. **Install Dependencies**
    - `npm install` or `yarn install`
 4. **Configure Environment Variables**
-   - Set environment variables as needed for your deployment. See the new Environment Variables section below for details.
+   - Create a `.env` file in the project root.
+   - Set the following variables as needed:
      - `APP_ENV` (e.g., `development` or `production`)
      - `SQLITE_DB_PATH` (path to the SQLite database file)
 5. **Run in Development Mode**
@@ -127,22 +128,3 @@ A Manual Entry feature is available to ensure flexibility in recording guest ent
 # License
 
 This project is licensed under the MIT License.
-
-# Environment Variables
-
-The following environment variables can be set to configure the Wolfpack Guestbook application. These should be set in your shell or system environment before launching the app (e.g., using `export VAR=value` on Linux/macOS or `set VAR=value` on Windows Command Prompt).
-
-- **APP_ENV**: Sets the application environment. Accepts `development` or `production`. Defaults to `production` if unset.
-  - Example: `export APP_ENV=development`
-
-- **SQLITE_DB_PATH**: Absolute or relative path to the SQLite database file. If unset, the app uses a default path in the user data directory.
-  - Example: `export SQLITE_DB_PATH=/path/to/guestbook.sqlite3`
-
-- **PUBLIC**: (Optional) Overrides the default public data directory for storing application data. If unset, defaults to `C:\Users\Public` on Windows or the platform equivalent.
-  - Example: `export PUBLIC=/srv/guestbook-data`
-
-- **XDG_DATA_HOME**: (Optional, Linux) Overrides the default XDG data directory for storing application data. If unset, defaults to `~/.local/share`.
-  - Example: `export XDG_DATA_HOME=/custom/data/home`
-
-Set these variables as needed before running the application. Most users will not need to set PUBLIC or XDG_DATA_HOME unless customizing data storage locations.
-

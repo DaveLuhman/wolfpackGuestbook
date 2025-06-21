@@ -8,7 +8,7 @@ const {
 const path = require("node:path");
 const fs = require("node:fs");
 const configManager = require("./configManager");
-const GuestEntry = require("./GuestEntry");
+const GuestEntry = require("./lib/standalone/GuestEntry");
 const { createObjectCsvWriter } = require("csv-writer");
 
 class WindowManager {
@@ -19,11 +19,6 @@ class WindowManager {
 			path.join(__dirname, "..", "public", "img", "favicon-32.png"),
 		);
 		this.setupIPC();
-		configManager.on('configChanged', () => {
-			if (this.mainWindow) {
-				this.mainWindow.reload();
-			}
-		});
 	}
 
 	setupIPC() {
@@ -157,8 +152,7 @@ class WindowManager {
 			height: 600,
 			webPreferences: {
 				nodeIntegration: true,
-				contextIsolation: false,
-				devTools: true
+				contextIsolation: false
 			},
 			title: "Guestbook",
 			icon: path.join(__dirname, "..", "public", "img", "favicon.ico"),
@@ -170,6 +164,11 @@ class WindowManager {
 		this.mainWindow.loadFile(path.join(__dirname, "..", "public", "index.html"));
 		this.mainWindow.on("closed", () => {
 			this.mainWindow = null;
+		});
+
+		// Open DevTools on launch
+		this.mainWindow.webContents.once('did-finish-load', () => {
+			this.mainWindow.webContents.openDevTools();
 		});
 
 		// Add hidden exit button for kiosk mode
@@ -312,6 +311,32 @@ class WindowManager {
 		manualEntryWindow.loadFile(path.join(__dirname, "..", "public", "manualEntry.html"));
 		manualEntryWindow.on("closed", () => {
 			manualEntryWindow = null;
+		});
+	}
+	async promptForDeploymentType() {
+		this.deviceOnboardingWindow = new BrowserWindow({
+			width: 400,
+			height: 400,
+			parent: this.mainWindow,
+			modal: true,
+			resizable: false,
+			webPreferences: {
+				nodeIntegration: true,
+				contextIsolation: false,
+				devTools: true
+			},
+			frame: false,
+			title: "Device Onboarding",
+		});
+		this.deviceOnboardingWindow.setMenu(null);
+		this.deviceOnboardingWindow.loadFile(path.join(__dirname, "..", "public", "deviceOnboarding.html"));
+		this.deviceOnboardingWindow.on("ready-to-show", () => {
+			this.deviceOnboardingWindow.show();
+			this.deviceOnboardingWindow.focus();
+			this.deviceOnboardingWindow.webContents.openDevTools();
+		});
+		this.deviceOnboardingWindow.on("closed", () => {
+			this.deviceOnboardingWindow = null;
 		});
 	}
 

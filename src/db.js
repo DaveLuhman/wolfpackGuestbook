@@ -61,8 +61,25 @@ const connectDB = knex({
 	},
 	useNullAsDefault: true,
 });
+// Migration: Add sync_status and server_id columns if missing
+async function migrateGuestEntryTable() {
+	const columns = await connectDB('GuestEntry').columnInfo();
+	if (!columns.sync_status) {
+		await connectDB.schema.alterTable('GuestEntry', (table) => {
+			table.string('sync_status').notNullable().defaultTo('pending');
+		});
+		console.log('Added sync_status column to GuestEntry');
+	}
+	if (!columns.server_id) {
+		await connectDB.schema.alterTable('GuestEntry', (table) => {
+			table.string('server_id').nullable();
+		});
+		console.log('Added server_id column to GuestEntry');
+	}
+}
 
 async function ensureTables() {
+
 	try {
 		const hasGuestEntryTable = await connectDB.schema.hasTable("GuestEntry");
 		if (!hasGuestEntryTable) {
@@ -81,6 +98,7 @@ async function ensureTables() {
 	}
 }
 
+migrateGuestEntryTable().catch((err) => { console.error("Migration failed:", err.message); process.exit(1); });
 ensureTables().catch((err) => {
 	console.error("Failed to ensure tables:", err.message);
 	process.exit(1);
