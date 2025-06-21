@@ -56,15 +56,4 @@ async function registerThisDevice(deviceName, deviceLocation) {
   const response = await axios.post(`${serverUrl}/api/v1/devices/register`, body, { headers });
   return response.data;
 }
-async function deviceHeartbeat() {
-  const serverUrl = configManager.getServerUrl();
-  const token = configManager.getServerToken();
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  }
-  const deviceId = configManager.getDeviceId();
-  const response = await axios.post(`${serverUrl}/api/v1/devices/heartbeat?deviceId=${deviceId}`, { headers });
-  return response.data;
-}
-module.exports = [registerThisDevice, deviceHeartbeat];
+module.exports = registerThisDevice;

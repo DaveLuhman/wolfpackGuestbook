@@ -2,7 +2,7 @@ const { ipcMain } = require('electron');
 const configManager = require('./configManager');
 const windowManager = require('./windowManager');
 const { CronJob } = require('cron');
-const { deviceHeartbeat, registerThisDevice } = require('./lib/server/devices');
+const { registerThisDevice } = require('./lib/server/devices');
 const { onSwipe } = require('./handlers/swipeHandler');
 const { onBarcodeScan } = require('./handlers/barcodeHandler');
 const { getMagtekSwiper, startListeningToSwiper, closeSwiper } = require('./magtekSwiper');
@@ -16,7 +16,7 @@ async function initSwiper() {
   let HIDPath = getMagtekSwiper();
   if (Array.isArray(HIDPath)) {
     windowManager.getMainWindow().webContents.send('select-swiper-hid', HIDPath);
-    ipcMain.once('swiper-hid-selection', async (event, selectedPath) => {
+    ipcMain.once('swiper-hid-selection', async (_event, selectedPath) => {
       HIDPath = selectedPath;
       try {
         windowManager.getMainWindow().setSize(400, 500);
@@ -48,7 +48,7 @@ async function initBarcode() {
   if (Array.isArray(HIDPath)) {
     console.log('Multiple HID devices detected, sending select-barcode-hid event to renderer.');
     windowManager.getMainWindow().webContents.send('select-barcode-hid', HIDPath);
-    ipcMain.once('barcode-hid-selection', async (event, selectedPath) => {
+    ipcMain.once('barcode-hid-selection', async (_event, selectedPath) => {
       console.log('Barcode HID device selected:', selectedPath);
       HIDPath = selectedPath;
       try {

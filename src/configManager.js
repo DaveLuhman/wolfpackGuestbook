@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { BrowserWindow, ipcMain, app } = require('electron');
+const { app } = require('electron');
 const os = require('node:os');
 const EventEmitter = require('node:events');
 
@@ -10,7 +10,7 @@ class ConfigManager extends EventEmitter {
         super();
         try {
             this.configPath = path.join(app.getPath('userData'), 'wg_config.json');
-        } catch (e) {
+        } catch (_e) {
             console.warn('Failed to resolve userData path. Falling back to home directory.');
             this.configPath = path.join(os.homedir(), '.wolfpack-guestbook', 'wg_config.json');
         }

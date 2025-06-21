@@ -5,8 +5,12 @@ let debounceTimeout;
 const DEBOUNCE_TIME = 1500; // milliseconds
 
 exports.guestButtonPress = async () => {
-  if (debounceTimeout) return;
-  debounceTimeout = setTimeout(() => (debounceTimeout = null), DEBOUNCE_TIME);
+  if (debounceTimeout) {
+    return;
+  }
+  debounceTimeout = setTimeout(() => {
+    debounceTimeout = null;
+  }, DEBOUNCE_TIME);
   try {
     await GuestEntry.createAnonymousEntry();
     windowManager.getMainWindow().webContents.send("guest-entry", { name: "Guest Visitor" });
