@@ -20,11 +20,15 @@
     <p>Select A HID MSR from the list</p>
     <select id="swiper-hid-selector"></select>
     <button type="submit" id="submit-swiper-hid">Submit</button>
+    <button type="button" id="skip-swiper-hid">Skip</button>
+
   </div>
   <div id="barcode-hid-selector-parent" style="display: none;">
     <p>Select A Barcode Scanner from the list</p>
     <select id="barcode-hid-selector"></select>
     <button type="submit" id="submit-barcode-hid">Submit</button>
+    <button type="button" id="skip-barcode-hid">Skip</button>
+
   </div>
   <script>
     const { ipcRenderer } = require("electron");
@@ -132,12 +136,26 @@
       document.getElementById("logo-link").style.display = "block";
     });
 
+    document.getElementById("skip-swiper-hid").addEventListener("click", () => {
+      ipcRenderer.send('skip-swiper-selection');
+      document.getElementById("swiper-hid-selector-parent").style.display = "none";
+      document.getElementById("logo-link").style.display = "block";
+    });
+
+
     document.getElementById("submit-barcode-hid").addEventListener("click", () => {
       const barcodeHidSelection = document.getElementById('barcode-hid-selector').value;
       console.log('Submitting Barcode HID selection:', barcodeHidSelection);
       ipcRenderer.send('barcode-hid-selection', barcodeHidSelection);
       document.getElementById("barcode-hid-selector-parent").style.display = "none";
       document.getElementById("logo-link").style.display = "block";
+    });
+
+    document.getElementById("skip-barcode-hid").addEventListener("click", () => {
+      ipcRenderer.send('skip-barcode-selection');
+      document.getElementById("barcode-hid-selector-parent").style.display = "none";
+      document.getElementById("logo-link").style.display = "block";
+
     });
   </script>
 </body>

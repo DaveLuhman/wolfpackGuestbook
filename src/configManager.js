@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { BrowserWindow, ipcMain, app } = require('electron');
+const { app } = require('electron');
 const os = require('node:os');
 const EventEmitter = require('node:events');
 
@@ -10,7 +10,7 @@ class ConfigManager extends EventEmitter {
         super();
         try {
             this.configPath = path.join(app.getPath('userData'), 'wg_config.json');
-        } catch (e) {
+        } catch (_e) {
             console.warn('Failed to resolve userData path. Falling back to home directory.');
             this.configPath = path.join(os.homedir(), '.wolfpack-guestbook', 'wg_config.json');
         }
@@ -36,6 +36,11 @@ class ConfigManager extends EventEmitter {
                 enabled: isARM64 && !isDarwin // Enable by default only on ARM64 non-Mac devices
             },
             serverUrl: null,
+            missingDevices: {
+                swiper: false,
+                barcode: false,
+            },
+
         };
 
         // Merge default config with existing config, preserving any existing values
@@ -50,10 +55,12 @@ class ConfigManager extends EventEmitter {
                 ...defaultConfig.kiosk,
                 ...(this.config.kiosk || {})
             },
-            serverUrl: {
-                ...defaultConfig.serverUrl,
-                ...(this.config.serverUrl || null)
-            }
+            missingDevices: {
+                ...defaultConfig.missingDevices,
+                ...(this.config.missingDevices || {})
+            },
+            serverUrl: this.config.serverUrl || defaultConfig.serverUrl,
+
         };
 
         // Save the merged config
@@ -199,6 +206,31 @@ class ConfigManager extends EventEmitter {
 
     setDeviceFriendlyName(deviceFriendlyName) {
         this.config.deviceFriendlyName = deviceFriendlyName;
+        this.saveConfig();
+    }
+
+    isSwiperMissing() {
+        return this.config.missingDevices?.swiper;
+    }
+
+    setSwiperMissing(state) {
+        this.config.missingDevices = {
+            ...this.config.missingDevices,
+            swiper: state,
+        };
+        this.saveConfig();
+    }
+
+    isBarcodeMissing() {
+        return this.config.missingDevices?.barcode;
+    }
+
+    setBarcodeMissing(state) {
+        this.config.missingDevices = {
+            ...this.config.missingDevices,
+            barcode: state,
+        };
+
         this.saveConfig();
     }
 }

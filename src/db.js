@@ -1,6 +1,6 @@
 const knex = require("knex");
 const dayjs = require("dayjs");
-const Database = require("better-sqlite3");
+const _Database = require("better-sqlite3");
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
