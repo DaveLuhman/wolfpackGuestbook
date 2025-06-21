@@ -1,268 +1,46 @@
-const {
-	app,
-	ipcMain,
-	globalShortcut,
-} = require("electron");
-const connectDB = require("./db.js");
-const GuestEntry = require("./lib/standalone/GuestEntry.js");
-const {
-	getMagtekSwiper,
-	startListeningToSwiper,
-	closeSwiper,
-} = require("./magtekSwiper.js");
-const {
-	getBarcodeScanner,
-	startListeningToScanner,
-	closeScanner,
-} = require("./barcodeScanner.js");
+const { app, ipcMain, globalShortcut } = require('electron');
+const connectDB = require('./db');
+const windowManager = require('./windowManager');
 const configManager = require('./configManager');
-const windowManager = require('./windowManager.js');
-const soundManager = require('./soundManager.js');
-const [registerThisDevice, deviceHeartbeat] = require("./lib/server/devices.js");
-const { submitEntry } = require("./lib/server/entries.js");
-const {CronJob} = require('cron');
+const { guestButtonPress } = require('./handlers/guestHandler');
+const { initializeDevices, setupOnboarding, cleanup } = require('./deviceManager');
 
+app.on('ready', async () => {
+  windowManager.createMainWindow();
+  try {
+    await connectDB;
+    console.log('Local SQLite database connected successfully.');
+  } catch (err) {
+    console.error('Failed to connect to the database:', err.message);
+    return app.quit();
+  }
 
-// HANDLER FUNCTIONS
-const onSwipe = async (error, onecardData) => {
-	if (error) {
-		console.error("Error during swipe:", error.message);
-		windowManager.getMainWindow().webContents.send("swipe-error", `Swipe error: ${error.message}`);
-		soundManager.playError();
-		return;
-	}
+  setupOnboarding();
 
-	const { onecard, name } = onecardData;
+  if (!configManager.getDeploymentType()) {
+    windowManager.promptForDeploymentType();
+  } else {
+    await initializeDevices();
+  }
 
-	try {
-		await GuestEntry.create(onecard, name);
-		windowManager.getMainWindow().webContents.send("guest-entry", {
-			name,
-			onecard,
-		});
-		if (configManager.getDeploymentType() === 'client-server') {
-			await submitEntry(onecard, name);
-		}
-		soundManager.playSuccess();
-	} catch (dbError) {
-		console.error("Error handling entry:", dbError.message);
-		windowManager.getMainWindow().webContents.send(
-			"entry-error",
-			`Database error: ${dbError.message}`,
-		);
-		soundManager.playError();
-	}
-};
-
-const onBarcodeScan = async (error, barcodeData) => {
-	if (error) {
-		console.error("Error during barcode scan:", error.message);
-		windowManager.getMainWindow().webContents.send("scan-error", `Barcode scan error: ${error.message}`);
-		soundManager.playError();
-		return;
-	}
-
-	const { onecard, name } = barcodeData;
-
-	try {
-		await GuestEntry.create(onecard, name);
-		windowManager.getMainWindow().webContents.send("guest-entry", {
-			name: "Barcode Entry",
-			onecard,
-		});
-		soundManager.playSuccess();
-	} catch (dbError) {
-		console.error("Error handling entry:", dbError.message);
-		windowManager.getMainWindow().webContents.send(
-			"entry-error",
-			`Database error: ${dbError.message}`,
-		);
-		soundManager.playError();
-	}
-};
-// GUEST BUTTON HANDLER
-const guestButtonPressCallback = async () => {
-	let debounceTimeout;
-	const DEBOUNCE_TIME = 1500; // 1500ms or 1.5 seconds
-	if (debounceTimeout) {
-		return; // Ignore the press if debounce is active
-	}
-
-	debounceTimeout = setTimeout(() => {
-		debounceTimeout = null; // Reset the timeout after the period
-	}, DEBOUNCE_TIME);
-	try {
-		await GuestEntry.createAnonymousEntry();
-		windowManager.getMainWindow().webContents.send("guest-entry", {
-			name: "Guest Visitor",
-			onecard: null,
-			entryTime: new Date().toLocaleDateString(),
-		});
-		soundManager.playSuccess();
-	} catch (error) {
-		console.error("Error handling entry:", error.message);
-		windowManager.getMainWindow().webContents.send(
-			"entry-error",
-			`Database error: ${error.message}`,
-		);
-		soundManager.playError();
-	}
-};
-
-// INIT FUNCTIONS
-async function initializeSwiper() {
-        if (configManager.isSwiperMissing()) {
-                console.log("Swiper marked as missing; skipping initialization.");
-                return;
-        }
-        let HIDPath = getMagtekSwiper();
-        if (Array.isArray(HIDPath)) {
-                windowManager.getMainWindow().webContents.send("select-swiper-hid", HIDPath);
-                ipcMain.once("swiper-hid-selection", async (event, selectedPath) => {
-                        HIDPath = selectedPath;
-                        try {
-                                windowManager.getMainWindow().setSize(400, 500);
-                                await startListeningToSwiper(HIDPath, onSwipe);
-                        } catch (error) {
-                                console.error("Error starting swiper after selection:", error.message);
-                        }
-                });
-                ipcMain.once('skip-swiper-selection', () => {
-                        configManager.setSwiperMissing(true);
-                });
-        } else {
-                try {
-                        console.log("MagTek Swiper detected, starting swiper...");
-                        await startListeningToSwiper(HIDPath, onSwipe);
-                } catch (error) {
-
-			console.error("Error starting swiper:", error.message);
-		}
-	}
-}
-
-
-async function initializeBarcodeScanner() {
-        if (configManager.isBarcodeMissing()) {
-                console.log("Barcode scanner marked as missing; skipping initialization.");
-                return;
-        }
-        console.log("Looking for Barcode Scanner or other HID devices...");
-        let HIDPath = getBarcodeScanner();
-        if (Array.isArray(HIDPath)) {
-                console.log(
-                        "Multiple HID devices detected, sending select-barcode-hid event to renderer.",
-                );
-                windowManager.getMainWindow().webContents.send("select-barcode-hid", HIDPath);
-                ipcMain.once("barcode-hid-selection", async (event, selectedPath) => {
-                        console.log("Barcode HID device selected:", selectedPath);
-                        HIDPath = selectedPath;
-                        try {
-                                windowManager.getMainWindow().setSize(400, 500);
-                                await startListeningToScanner(HIDPath, onBarcodeScan);
-                        } catch (error) {
-                                console.error("Error starting barcode scanner after selection:", error.message);
-                        }
-                });
-                ipcMain.once('skip-barcode-selection', () => {
-                        configManager.setBarcodeMissing(true);
-                });
-        } else {
-                try {
-                        console.log("Barcode Scanner detected, starting scanner...");
-                        await startListeningToScanner(HIDPath, onBarcodeScan);
-                } catch (error) {
-
-			console.error("Error starting barcode scanner:", error.message);
-		}
-	}
-}
-
-
-// MAIN APP INIT
-app.on("ready", async () => {
-	windowManager.createMainWindow();
-
-	// DEVICE ONBOARDING HANDLERs
-        ipcMain.on('standalone-deployment', () => {
-                configManager.setDeploymentType('standalone');
-                if (windowManager.deviceOnboardingWindow) {
-                        windowManager.deviceOnboardingWindow.close();
-                }
-                initializeSwiper();
-                initializeBarcodeScanner();
-        });
-
-        ipcMain.on('device-onboarding-submit', async (event, { serverUrl, friendlyName, location }) => {
-                try {
-                        // Save the config (or do registration, etc.)
-                        configManager.setServerUrl(serverUrl);
-                        configManager.setDeviceFriendlyName(friendlyName);
-                        configManager.setDeviceLocation(location);
-                        configManager.setDeploymentType('client-server');
-                        const response = await registerThisDevice();
-                        configManager.setServerToken(response.uuid);
-                        configManager.setDeviceId(response.id);
-
-                        event.sender.send('device-onboarding-success');
-                        if (windowManager.deviceOnboardingWindow) {
-                                windowManager.deviceOnboardingWindow.close();
-                        }
-                        initializeSwiper();
-                        initializeBarcodeScanner();
-                } catch (err) {
-                        event.sender.send('device-onboarding-error', err.message);
-                }
-        });
-
-	// First run: prompt for deployment type
-	if (!configManager.getDeploymentType()) {
-		windowManager.promptForDeploymentType();
-	}
-
-	try {
-		await connectDB;
-		console.log("Local SQLite database connected successfully.");
-	} catch (err) {
-		console.error("Failed to connect to the database:", err.message);
-		app.quit();
-	}
-
-	globalShortcut.register("F24", guestButtonPressCallback);
-
-	// INITIALIZE HID DEVICES
-        ipcMain.on('renderer-ready', () => {
-                if (configManager.getDeploymentType()) {
-                        initializeSwiper();
-                        initializeBarcodeScanner();
-                }
-        });
-
-	if (configManager.getDeploymentType() === 'client-server') {
-		const heartbeatCron =  CronJob.from('*/10 * * * *', deviceHeartbeat)
-		heartbeatCron.start();
-	}
-
+  globalShortcut.register('F24', guestButtonPress);
+  ipcMain.on('renderer-ready', initializeDevices);
 });
 
-// WINDOW ALL CLOSED HANDLER
-app.on("window-all-closed", () => {
-	if (process.platform !== "darwin") {
-		globalShortcut.unregisterAll();
-		app.quit();
-	}
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    globalShortcut.unregisterAll();
+    app.quit();
+  }
 });
 
-// WINDOW ACTIVATE HANDLER
-app.on("activate", () => {
-	if (!windowManager.getMainWindow()) {
-		windowManager.createMainWindow();
-	}
+app.on('activate', () => {
+  if (!windowManager.getMainWindow()) {
+    windowManager.createMainWindow();
+  }
 });
 
-// WILL QUIT HANDLER
-app.on("will-quit", () => {
-	globalShortcut.unregisterAll();
-	closeSwiper();
-	closeScanner();
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  cleanup();
 });
