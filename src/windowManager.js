@@ -66,7 +66,7 @@ class WindowManager {
 			}
 		});
 		// Handle CSV export
-		ipcMain.on("export-csv", async (event) => {
+		ipcMain.on("export-csv", async (_event) => {
 			try {
 				const entries = await GuestEntry.getAllEntries();
 				const currentDate = new Date().toISOString().split("T")[0];
@@ -132,12 +132,12 @@ class WindowManager {
 		});
 
 		// Handle password change
-		ipcMain.on("set-password", async (event, newPassword) => {
+		ipcMain.on("set-password", async (_event, newPassword) => {
 			configManager.setPassword(newPassword || "");
 		});
 
 		// Handle kiosk mode toggle
-		ipcMain.on("set-kiosk-mode", async (event, enabled) => {
+		ipcMain.on("set-kiosk-mode", async (_event, enabled) => {
 			if (typeof enabled === "boolean") {
 				configManager.setKioskMode(enabled);
 			} else {
@@ -471,7 +471,7 @@ class WindowManager {
 			promptWindow.once("ready-to-show", () => {
 				promptWindow.show();
 			});
-			ipcMain.once(channelId, (event, value) => {
+			ipcMain.once(channelId, (_event, value) => {
 				resolve(value);
 				if (!promptWindow.isDestroyed()) {
 					promptWindow.close();
