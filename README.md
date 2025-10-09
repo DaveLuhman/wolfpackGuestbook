@@ -1,5 +1,19 @@
+# Deprecated: Project Archived and Superseded
+
+This repository is archived and no longer under active development. It has been superseded by the Tauri-based client at [guestbook-client](https://github.com/daveluhman/guestbook-client).
+
+Why the change:
+- Electron proved too large for our deployment needs
+- Several client–backend components required system-level/kernel-level access that Electron could not provide
+- We migrated to Tauri and adopted a SaaS model instead of a standalone device model
+
+This repo should continue to function as-is (subject to dependency changes since archival), but it will not receive security or functionality updates.
+
+#
+
+
 # Project Name
-# Wolfpack Guestbook - Version 1.0.7
+# Wolfpack Guestbook - Version 1.0.8 - End of Service Life
 ## Purpose
 Wolfpack Guestbook is an Electron-based desktop application designed to track attendance volume as a fully-enclosed software solution. It processes card swipe data or virtual keystrokes to extract user identification information, optionally display the result to the screen, and store it to a local-only SQLite3 database. This can later be exported to CSV for further examination and analysis.
 
@@ -92,3 +106,11 @@ A new Manual Entry feature has been added to ensure flexibility in recording gue
 ## License
 
 This project is licensed under the MIT License.
+
+---
+
+## Project Status: Archived
+
+- Superseded by: [guestbook-client](https://github.com/daveluhman/guestbook-client)
+- Rationale: Electron footprint was too large; required system/kernel-level access not feasible in Electron; migrated to Tauri and a SaaS architecture.
+- Maintenance: No further security or feature updates. The code may still run, but breakage can occur due to dependency changes since archival.

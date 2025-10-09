@@ -2,6 +2,7 @@
   "name": "wolfpack-guestbook",
   "version": "1.0.8",
   "description": "guest attendance tracking application",
+  "archived": true,
   "main": "src/main.js",
   "type": "commonjs",
   "scripts": {
